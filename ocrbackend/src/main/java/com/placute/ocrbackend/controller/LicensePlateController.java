@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @RestController
@@ -62,7 +63,7 @@ public class LicensePlateController {
             @PathVariable Long id,
             @RequestBody LicensePlate updatedData) {
 
-        Optional<LicensePlate> optionalPlate = licensePlateRepository.findById(id);
+        Optional<LicensePlate> optionalPlate = licensePlateRepository.findById(Objects.requireNonNull(id, "id is required"));
         if (!optionalPlate.isPresent()) {
             return ResponseEntity.notFound().build();
         }
@@ -90,7 +91,7 @@ public class LicensePlateController {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         Document document = new Document();
         try {
-            PdfWriter writer = PdfWriter.getInstance(document, out);
+            PdfWriter.getInstance(document, out);
             document.open();
 
             Font titleFont = new Font(Font.FontFamily.HELVETICA, 20, Font.BOLD, BaseColor.BLACK);
@@ -205,7 +206,7 @@ public class LicensePlateController {
         byte[] pdfBytes = out.toByteArray();
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=plate_" + plateNumber + ".pdf")
-                .contentType(MediaType.APPLICATION_PDF)
+                .contentType(Objects.requireNonNull(MediaType.APPLICATION_PDF))
                 .body(pdfBytes);
     }
 

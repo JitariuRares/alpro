@@ -1,6 +1,5 @@
 package com.placute.ocrbackend.controller;
 
-import com.placute.ocrbackend.auth.AuthRequest;
 import com.placute.ocrbackend.auth.AuthResponse;
 import com.placute.ocrbackend.dto.LoginRequest;
 import com.placute.ocrbackend.dto.RegisterRequest;

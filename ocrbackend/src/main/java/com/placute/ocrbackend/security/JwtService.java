@@ -4,7 +4,6 @@ import com.placute.ocrbackend.model.AppUser;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.security.SignatureException;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;

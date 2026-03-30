@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16
+    container_name: alpro-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ocr_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ocr_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./ocrbackend
+      dockerfile: Dockerfile
+    container_name: alpro-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-ocr_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      TESSERACT_DATAPATH: ${TESSERACT_DATAPATH:-/usr/share/tesseract-ocr/5/tessdata}
+      OPENAI_API_KEY: ${OPENAI_API_KEY_DOCKER:-}
+      ALPR_ML_BASE_URL: ${ALPR_ML_BASE_URL:-http://localhost:8000}
+      ALPR_FALLBACK_OPENAI_ENABLED: ${ALPR_FALLBACK_OPENAI_ENABLED:-false}
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./ocr-frontend
+      dockerfile: Dockerfile
+    container_name: alpro-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  pgdata:

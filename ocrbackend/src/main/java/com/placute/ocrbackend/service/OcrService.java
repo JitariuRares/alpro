@@ -51,7 +51,7 @@ public class OcrService {
                 return "Nicio placuta detectata.";
             }
 
-            savePlate(plate, imageFile);
+            savePlate(detection, imageFile);
             return "Placuta detectata si salvata: " + plate;
         } catch (Exception e) {
             return "Eroare la OCR: " + e.getMessage();
@@ -67,7 +67,7 @@ public class OcrService {
                 return null;
             }
 
-            LicensePlate savedPlate = savePlate(plate, imageFile);
+            LicensePlate savedPlate = savePlate(detection, imageFile);
             return new OcrDetectionResult(
                     savedPlate,
                     detection.confidence(),
@@ -155,19 +155,46 @@ public class OcrService {
         return null;
     }
 
-    private LicensePlate savePlate(String plate, File imageFile) {
-        List<LicensePlate> existing = plateRepository.findByPlateNumber(plate);
+    private LicensePlate savePlate(PlateDetection detection, File imageFile) {
+        List<LicensePlate> existing = plateRepository.findByPlateNumber(detection.plate());
         LicensePlate lp;
         if (existing.isEmpty()) {
-            lp = new LicensePlate(plate, imageFile.getAbsolutePath());
-            plateRepository.save(lp);
+            lp = new LicensePlate(detection.plate(), imageFile.getAbsolutePath());
         } else {
             lp = existing.get(0);
         }
 
-        OcrHistory history = new OcrHistory(lp, imageFile.getName(), LocalDateTime.now());
+        lp.setDetectedAt(LocalDateTime.now());
+        lp.setImagePath(imageFile.getAbsolutePath());
+        lp.setConfidence(detection.confidence());
+
+        MlAlprResult.Bbox bbox = detection.bbox();
+        if (bbox != null) {
+            lp.setBboxX(bbox.getX());
+            lp.setBboxY(bbox.getY());
+            lp.setBboxW(bbox.getW());
+            lp.setBboxH(bbox.getH());
+        } else {
+            lp.setBboxX(null);
+            lp.setBboxY(null);
+            lp.setBboxW(null);
+            lp.setBboxH(null);
+        }
+
+        LicensePlate saved = plateRepository.save(lp);
+
+        OcrHistory history = new OcrHistory(
+                saved,
+                imageFile.getName(),
+                LocalDateTime.now(),
+                detection.confidence(),
+                saved.getBboxX(),
+                saved.getBboxY(),
+                saved.getBboxW(),
+                saved.getBboxH()
+        );
         historyRepository.save(history);
 
-        return lp;
+        return saved;
     }
 }

@@ -1,7 +1,6 @@
 package com.placute.ocrbackend.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,17 +31,32 @@ public class LicensePlate {
     @Column(name = "owner")
     private String owner;
 
+    @Column(name = "confidence")
+    private Double confidence;
+
+    @Column(name = "bbox_x")
+    private Integer bboxX;
+
+    @Column(name = "bbox_y")
+    private Integer bboxY;
+
+    @Column(name = "bbox_w")
+    private Integer bboxW;
+
+    @Column(name = "bbox_h")
+    private Integer bboxH;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     @JsonIgnore
     private AppUser user;
 
     @OneToMany(mappedBy = "licensePlate", cascade = CascadeType.ALL)
-    @JsonManagedReference
+    @JsonIgnore
     private List<ParkingHistory> parkingHistory;
 
     @OneToMany(mappedBy = "licensePlate", cascade = CascadeType.ALL)
-    @JsonManagedReference
+    @JsonIgnore
     private List<Insurance> insurances;
 
     public LicensePlate() { }
@@ -98,6 +112,41 @@ public class LicensePlate {
     }
     public void setOwner(String owner) {
         this.owner = owner;
+    }
+
+    public Double getConfidence() {
+        return confidence;
+    }
+    public void setConfidence(Double confidence) {
+        this.confidence = confidence;
+    }
+
+    public Integer getBboxX() {
+        return bboxX;
+    }
+    public void setBboxX(Integer bboxX) {
+        this.bboxX = bboxX;
+    }
+
+    public Integer getBboxY() {
+        return bboxY;
+    }
+    public void setBboxY(Integer bboxY) {
+        this.bboxY = bboxY;
+    }
+
+    public Integer getBboxW() {
+        return bboxW;
+    }
+    public void setBboxW(Integer bboxW) {
+        this.bboxW = bboxW;
+    }
+
+    public Integer getBboxH() {
+        return bboxH;
+    }
+    public void setBboxH(Integer bboxH) {
+        this.bboxH = bboxH;
     }
 
     public AppUser getUser() {

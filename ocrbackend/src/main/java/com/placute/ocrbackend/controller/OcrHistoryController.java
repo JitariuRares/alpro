@@ -20,19 +20,27 @@ public class OcrHistoryController {
 
     @GetMapping("/history")
     public ResponseEntity<List<OcrHistoryDto>> getAllHistory() {
-        List<OcrHistory> all = historyRepository.findAllByOrderByProcessedAtDesc();
+        List<OcrHistory> all = historyRepository.findAllWithLicensePlateOrderByProcessedAtDesc();
 
         List<OcrHistoryDto> dtoList = all.stream()
                 .map(h -> {
                     var lp = h.getLicensePlate();
+                    OcrHistoryDto.BboxDto bboxDto = new OcrHistoryDto.BboxDto(
+                            h.getBboxX(),
+                            h.getBboxY(),
+                            h.getBboxW(),
+                            h.getBboxH()
+                    );
                     return new OcrHistoryDto(
                             h.getId(),
                             lp.getPlateNumber(),
                             lp.getBrand(),
                             lp.getModel(),
                             lp.getOwner(),
-                            lp.getImagePath(),
-                            h.getProcessedAt()
+                            h.getFilename(),
+                            h.getProcessedAt(),
+                            h.getConfidence(),
+                            bboxDto
                     );
                 })
                 .collect(Collectors.toList());
@@ -43,19 +51,27 @@ public class OcrHistoryController {
     @GetMapping("/history/search")
     public ResponseEntity<List<OcrHistoryDto>> searchHistory(@RequestParam("query") String query) {
         List<OcrHistory> partial = historyRepository
-                .findByLicensePlate_PlateNumberContainingIgnoreCaseOrderByProcessedAtDesc(query);
+                .findByPlateNumberContainingWithLicensePlateOrderByProcessedAtDesc(query);
 
         List<OcrHistoryDto> dtoList = partial.stream()
                 .map(h -> {
                     var lp = h.getLicensePlate();
+                    OcrHistoryDto.BboxDto bboxDto = new OcrHistoryDto.BboxDto(
+                            h.getBboxX(),
+                            h.getBboxY(),
+                            h.getBboxW(),
+                            h.getBboxH()
+                    );
                     return new OcrHistoryDto(
                             h.getId(),
                             lp.getPlateNumber(),
                             lp.getBrand(),
                             lp.getModel(),
                             lp.getOwner(),
-                            lp.getImagePath(),
-                            h.getProcessedAt()
+                            h.getFilename(),
+                            h.getProcessedAt(),
+                            h.getConfidence(),
+                            bboxDto
                     );
                 })
                 .collect(Collectors.toList());

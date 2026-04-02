@@ -1,0 +1,1 @@
+{"error":"Could not write JSON: failed to lazily initialize a collection of role: com.placute.ocrbackend.model.LicensePlate.parkingHistory: could not initialize proxy - no Session"}

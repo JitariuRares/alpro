@@ -2,13 +2,23 @@ package com.placute.ocrbackend.repository;
 
 import com.placute.ocrbackend.model.OcrHistory;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
 
 public interface OcrHistoryRepository extends JpaRepository<OcrHistory, Long> {
 
-    List<OcrHistory> findAllByOrderByProcessedAtDesc();
+    @Query("select h from OcrHistory h join fetch h.licensePlate order by h.processedAt desc")
+    List<OcrHistory> findAllWithLicensePlateOrderByProcessedAtDesc();
 
-    List<OcrHistory> findByLicensePlate_PlateNumberContainingIgnoreCaseOrderByProcessedAtDesc(String fragment);
+    @Query("""
+            select h
+            from OcrHistory h
+            join fetch h.licensePlate lp
+            where lower(lp.plateNumber) like lower(concat('%', :fragment, '%'))
+            order by h.processedAt desc
+            """)
+    List<OcrHistory> findByPlateNumberContainingWithLicensePlateOrderByProcessedAtDesc(@Param("fragment") String fragment);
 }

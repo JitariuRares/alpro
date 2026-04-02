@@ -11,8 +11,20 @@ public class OcrHistoryDto {
     private String owner;
     private String imagePath;
     private LocalDateTime processedAt;
+    private Double confidence;
+    private BboxDto bbox;
 
-    public OcrHistoryDto(Long id, String plateNumber, String brand, String model, String owner, String imagePath, LocalDateTime processedAt) {
+    public OcrHistoryDto(
+            Long id,
+            String plateNumber,
+            String brand,
+            String model,
+            String owner,
+            String imagePath,
+            LocalDateTime processedAt,
+            Double confidence,
+            BboxDto bbox
+    ) {
         this.id = id;
         this.plateNumber = plateNumber;
         this.brand = brand;
@@ -20,6 +32,8 @@ public class OcrHistoryDto {
         this.owner = owner;
         this.imagePath = imagePath;
         this.processedAt = processedAt;
+        this.confidence = confidence;
+        this.bbox = bbox;
     }
 
     public Long getId() {
@@ -42,5 +56,38 @@ public class OcrHistoryDto {
     }
     public LocalDateTime getProcessedAt() {
         return processedAt;
+    }
+    public Double getConfidence() {
+        return confidence;
+    }
+    public BboxDto getBbox() {
+        return bbox;
+    }
+
+    public static class BboxDto {
+        private Integer x;
+        private Integer y;
+        private Integer w;
+        private Integer h;
+
+        public BboxDto(Integer x, Integer y, Integer w, Integer h) {
+            this.x = x;
+            this.y = y;
+            this.w = w;
+            this.h = h;
+        }
+
+        public Integer getX() {
+            return x;
+        }
+        public Integer getY() {
+            return y;
+        }
+        public Integer getW() {
+            return w;
+        }
+        public Integer getH() {
+            return h;
+        }
     }
 }

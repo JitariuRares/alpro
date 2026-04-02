@@ -72,13 +72,6 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- Tess4J OCR -->
-		<dependency>
-			<groupId>net.sourceforge.tess4j</groupId>
-			<artifactId>tess4j</artifactId>
-			<version>5.4.0</version>
-		</dependency>
-
 		<!-- Dev tools -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

@@ -8,10 +8,6 @@ RUN mvn -DskipTests package
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY --from=build /app/target/*SNAPSHOT.jar app.jar
 EXPOSE 8080
 

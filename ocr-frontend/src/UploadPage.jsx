@@ -1,69 +1,54 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import Cropper from 'react-easy-crop';
-import getCroppedImg from './cropImage';
+import React, { useEffect, useRef, useState } from 'react';
 import './UploadPage.css';
 
 function UploadPage() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewBox, setPreviewBox] = useState(null);
   const [carData, setCarData] = useState(null);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [editData, setEditData] = useState({ brand: '', model: '', owner: '' });
-
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [showCropper, setShowCropper] = useState(false);
-
-  const onCropComplete = useCallback((_, croppedPixels) => {
-    setCroppedAreaPixels(croppedPixels);
-  }, []);
-
-  const handleCropConfirm = useCallback(async () => {
-    if (!previewUrl || !croppedAreaPixels) return;
-
-    try {
-      const croppedBlob = await getCroppedImg(previewUrl, croppedAreaPixels);
-      const croppedPreviewUrl = URL.createObjectURL(croppedBlob);
-      setPreviewUrl(croppedPreviewUrl);
-      setSelectedFile(croppedBlob);
-      setShowCropper(false);
-    } catch (err) {
-      setError('Eroare la crop!');
-    }
-  }, [previewUrl, croppedAreaPixels]);
+  const imgRef = useRef(null);
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Enter') {
-        handleCropConfirm();
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleCropConfirm]);
+  }, [previewUrl]);
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
+
     setCarData(null);
     setSuccessMessage('');
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      setShowCropper(true);
+    setError('');
+
+    if (!file) {
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      return;
     }
+
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleUpload = async () => {
-    if (!previewUrl) {
+    if (!selectedFile) {
       setError('Nu ai selectat o imagine.');
       return;
     }
 
     try {
       const formData = new FormData();
-      formData.append('image', selectedFile, 'cropped.png');
+      formData.append('image', selectedFile, selectedFile.name);
 
       const response = await fetch('http://localhost:8080/api/ocr/full', {
         method: 'POST',
@@ -86,6 +71,42 @@ function UploadPage() {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const handlePreviewLoad = () => {
+    if (!imgRef.current) {
+      setPreviewBox(null);
+      return;
+    }
+
+    const img = imgRef.current;
+    if (!img.naturalWidth || !img.naturalHeight) {
+      setPreviewBox(null);
+      return;
+    }
+
+    setPreviewBox({
+      renderedWidth: img.clientWidth,
+      renderedHeight: img.clientHeight,
+      naturalWidth: img.naturalWidth,
+      naturalHeight: img.naturalHeight,
+    });
+  };
+
+  const getOverlayStyle = () => {
+    if (!carData?.bbox || !previewBox) {
+      return null;
+    }
+
+    const scaleX = previewBox.renderedWidth / previewBox.naturalWidth;
+    const scaleY = previewBox.renderedHeight / previewBox.naturalHeight;
+
+    return {
+      left: `${carData.bbox.x * scaleX}px`,
+      top: `${carData.bbox.y * scaleY}px`,
+      width: `${carData.bbox.w * scaleX}px`,
+      height: `${carData.bbox.h * scaleY}px`,
+    };
   };
 
   const handleEditChange = (e) => {
@@ -115,7 +136,11 @@ function UploadPage() {
       }
 
       const updated = await response.json();
-      setCarData(updated);
+      setCarData((prev) => ({
+        ...updated,
+        confidence: prev?.confidence ?? null,
+        bbox: prev?.bbox ?? null,
+      }));
       setSuccessMessage('Detaliile au fost actualizate cu succes!');
       setError('');
     } catch (err) {
@@ -123,28 +148,33 @@ function UploadPage() {
     }
   };
 
+  const overlayStyle = getOverlayStyle();
+  const confidencePercent = carData?.confidence != null
+    ? `${(carData.confidence * 100).toFixed(1)}%`
+    : null;
+
   return (
     <div className="upload-container">
       <div className="upload-left">
-        <h2 className="upload-title">🔍 Previzualizare imagine</h2>
+        <h2 className="upload-title">Previzualizare imagine</h2>
 
-        {showCropper && previewUrl && (
-          <div className="crop-container">
-            <Cropper
-              image={previewUrl}
-              crop={crop}
-              zoom={zoom}
-              aspect={4 / 1}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={onCropComplete}
+        {previewUrl && (
+          <div className="preview-wrapper">
+            <img
+              ref={imgRef}
+              src={previewUrl}
+              alt="Preview imagine selectata"
+              className="upload-preview"
+              onLoad={handlePreviewLoad}
             />
-            <p className="text-sm text-center text-gray-600 mt-2">Apasa ENTER pentru a confirma selectia</p>
+            {overlayStyle && (
+              <div className="bbox-overlay" style={overlayStyle}>
+                <span className="bbox-label">
+                  {carData.plateNumber || 'PLACUTA'}
+                </span>
+              </div>
+            )}
           </div>
-        )}
-
-        {!showCropper && previewUrl && (
-          <img src={previewUrl} alt="Preview crop-uit" className="upload-preview" />
         )}
 
         <label className="primary-btn cursor-pointer">
@@ -152,17 +182,20 @@ function UploadPage() {
           <input type="file" accept="image/*" onChange={handleFileChange} hidden />
         </label>
 
-        {!showCropper && previewUrl && (
+        {previewUrl && (
           <button onClick={handleUpload} className="primary-btn">Trimite imaginea</button>
         )}
       </div>
 
       <div className="upload-right">
-        <h2 className="upload-title">📋 Detalii Plăcuta</h2>
+        <h2 className="upload-title">Detalii placuta</h2>
 
         {carData && (
           <>
             <p><strong>Placuta:</strong> {carData.plateNumber}</p>
+            {confidencePercent && (
+              <p><strong>Incredere detectie:</strong> {confidencePercent}</p>
+            )}
 
             <label className="label">Marca:</label>
             <input type="text" name="brand" value={editData.brand} onChange={handleEditChange} className="input" />

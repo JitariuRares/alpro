@@ -16,6 +16,26 @@ services:
       timeout: 5s
       retries: 10
 
+  alpr-ml:
+    build:
+      context: ./alpr-ml
+      dockerfile: Dockerfile
+    container_name: alpro-alpr-ml
+    environment:
+      OMP_NUM_THREADS: "1"
+      YOLO_CONFIG_DIR: "/tmp"
+    ports:
+      - "8000:8000"
+    volumes:
+      - alpr_ml_cache:/root/.cache
+      - alpr_ml_paddle:/root/.paddleocr
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 300s
+
   backend:
     build:
       context: ./ocrbackend
@@ -24,13 +44,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      alpr-ml:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-ocr_db}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      TESSERACT_DATAPATH: ${TESSERACT_DATAPATH:-/usr/share/tesseract-ocr/5/tessdata}
       OPENAI_API_KEY: ${OPENAI_API_KEY_DOCKER:-}
-      ALPR_ML_BASE_URL: ${ALPR_ML_BASE_URL:-http://localhost:8000}
+      ALPR_ML_BASE_URL: http://alpr-ml:8000
       ALPR_FALLBACK_OPENAI_ENABLED: ${ALPR_FALLBACK_OPENAI_ENABLED:-false}
     ports:
       - "8080:8080"
@@ -47,3 +68,5 @@ services:
 
 volumes:
   pgdata:
+  alpr_ml_cache:
+  alpr_ml_paddle:

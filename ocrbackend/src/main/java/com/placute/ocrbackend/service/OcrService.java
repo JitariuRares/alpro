@@ -1,19 +1,16 @@
 package com.placute.ocrbackend.service;
 
+import com.placute.ocrbackend.integration.MlAlprClient;
 import com.placute.ocrbackend.integration.OpenAIOcrService;
+import com.placute.ocrbackend.integration.dto.MlAlprResult;
 import com.placute.ocrbackend.model.LicensePlate;
 import com.placute.ocrbackend.model.OcrHistory;
 import com.placute.ocrbackend.repository.LicensePlateRepository;
 import com.placute.ocrbackend.repository.OcrHistoryRepository;
-import net.sourceforge.tess4j.Tesseract;
-import net.sourceforge.tess4j.TesseractException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -24,6 +21,8 @@ import java.util.regex.Pattern;
 @Service
 public class OcrService {
 
+    private static final Pattern PLATE_PATTERN = Pattern.compile("[A-Z]{1,2}\\s?\\d{2}\\s?[A-Z]{3}");
+
     @Autowired
     private LicensePlateRepository plateRepository;
 
@@ -33,35 +32,20 @@ public class OcrService {
     @Autowired
     private OpenAIOcrService openAIOcrService;
 
-    @Value("${tesseract.datapath:C:\\Program Files\\Tesseract-OCR\\tessdata}")
-    private String tesseractDataPath;
+    @Autowired
+    private MlAlprClient mlAlprClient;
 
-    private File preprocessImage(File inputFile) throws IOException {
-        BufferedImage image = ImageIO.read(inputFile);
+    @Value("${alpr.fallback.openai.enabled:false}")
+    private boolean openAiFallbackEnabled;
 
-        BufferedImage gray = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
-        Graphics2D g = gray.createGraphics();
-        g.drawImage(image, 0, 0, null);
-        g.dispose();
+    public record OcrDetectionResult(LicensePlate licensePlate, Double confidence, MlAlprResult.Bbox bbox) {}
 
-        for (int y = 0; y < gray.getHeight(); y++) {
-            for (int x = 0; x < gray.getWidth(); x++) {
-                int rgb = gray.getRGB(x, y) & 0xFF;
-                int enhanced = Math.min(255, (int) (rgb * 1.4));
-                int pixel = (enhanced << 16) | (enhanced << 8) | enhanced;
-                gray.setRGB(x, y, pixel);
-            }
-        }
-
-        File output = new File(System.getProperty("java.io.tmpdir"), "preprocessed_advanced.png");
-        ImageIO.write(gray, "png", output);
-        return output;
-    }
+    private record PlateDetection(String plate, Double confidence, MlAlprResult.Bbox bbox) {}
 
     public String recognizeText(File imageFile) {
         try {
-            File processed = preprocessImage(imageFile);
-            String plate = detectPlateWithFallback(processed);
+            PlateDetection detection = detectPlateWithFallback(imageFile);
+            String plate = detection != null ? detection.plate() : null;
 
             if (plate == null) {
                 return "Nicio placuta detectata.";
@@ -69,78 +53,103 @@ public class OcrService {
 
             savePlate(plate, imageFile);
             return "Placuta detectata si salvata: " + plate;
-
         } catch (Exception e) {
             return "Eroare la OCR: " + e.getMessage();
         }
     }
 
-    public LicensePlate recognizeAndReturnPlate(File imageFile) {
+    public OcrDetectionResult recognizeAndReturnPlate(File imageFile) {
         try {
-            File processed = preprocessImage(imageFile);
-            String plate = detectPlateWithFallback(processed);
+            PlateDetection detection = detectPlateWithFallback(imageFile);
+            String plate = detection != null ? detection.plate() : null;
 
             if (plate == null) {
                 return null;
             }
 
-            return savePlate(plate, imageFile);
-
+            LicensePlate savedPlate = savePlate(plate, imageFile);
+            return new OcrDetectionResult(
+                    savedPlate,
+                    detection.confidence(),
+                    detection.bbox()
+            );
         } catch (Exception e) {
             throw new RuntimeException("Eroare la OCR: " + e.getMessage());
         }
     }
 
-    private String detectPlateWithFallback(File processedImage) {
-        String plate = null;
-
-        try {
-            plate = detectWithTesseract(processedImage);
-        } catch (Throwable t) {
-            System.out.println("Tesseract indisponibil. Fallback OpenAI: " + t.getMessage());
+    private PlateDetection detectPlateWithFallback(File imageFile) {
+        PlateDetection mlDetection = detectWithMlService(imageFile);
+        if (mlDetection != null) {
+            return mlDetection;
         }
 
-        if (plate == null) {
-            System.out.println("Tesseract a esuat. Apelam OpenAI...");
-            plate = detectWithOpenAI(processedImage);
-        }
-
-        return plate;
-    }
-
-    private String detectWithTesseract(File image) throws TesseractException {
-        Tesseract tesseract = new Tesseract();
-        tesseract.setDatapath(tesseractDataPath);
-        tesseract.setLanguage("eng");
-
-        String rawText = tesseract.doOCR(image);
-        System.out.println("TEXT DETECTAT de Tesseract:\n" + rawText);
-        String cleanedText = rawText.toUpperCase().replaceAll("[^A-Z0-9 ]", "");
-
-        Pattern pattern = Pattern.compile("[A-Z]{1,2}\\s?\\d{2}\\s?[A-Z]{3}");
-        Matcher matcher = pattern.matcher(cleanedText);
-
-        if (matcher.find()) {
-            return matcher.group().replaceAll("\\s+", "");
+        if (openAiFallbackEnabled) {
+            System.out.println("ML service nu a detectat placuta. Folosim fallback OpenAI...");
+            return detectWithOpenAI(imageFile);
         }
 
         return null;
     }
 
-    private String detectWithOpenAI(File image) {
+    private PlateDetection detectWithMlService(File imageFile) {
         try {
-            String aiResult = openAIOcrService.detectPlateNumber(image);
-            if (aiResult == null) {
+            MlAlprResult result = mlAlprClient.detectPlate(imageFile);
+            if (result == null) {
                 return null;
             }
 
-            Pattern pattern = Pattern.compile("[A-Z]{1,2}\\s?\\d{2}\\s?[A-Z]{3}");
-            Matcher matcher = pattern.matcher(aiResult.toUpperCase());
-            if (matcher.find()) {
-                return matcher.group().replaceAll("\\s+", "");
+            String directPlate = extractPlate(result.getPlateText());
+            if (directPlate != null) {
+                return new PlateDetection(directPlate, result.getConfidence(), result.getBbox());
+            }
+
+            if (result.getCandidates() != null) {
+                for (MlAlprResult.Candidate candidate : result.getCandidates()) {
+                    String candidatePlate = extractPlate(candidate.getText());
+                    if (candidatePlate != null) {
+                        return new PlateDetection(candidatePlate, candidate.getConfidence(), result.getBbox());
+                    }
+                }
             }
         } catch (IOException e) {
+            System.out.println("Eroare la apel ML service: " + e.getMessage());
+        }
+
+        return null;
+    }
+
+    private PlateDetection detectWithOpenAI(File image) {
+        try {
+            String plate = extractPlate(openAIOcrService.detectPlateNumber(image));
+            if (plate == null) {
+                return null;
+            }
+            return new PlateDetection(plate, null, null);
+        } catch (IOException e) {
             System.out.println("Eroare OpenAI: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String extractPlate(String rawText) {
+        if (rawText == null || rawText.isBlank()) {
+            return null;
+        }
+
+        String cleanedText = rawText.toUpperCase()
+                .replaceAll("[^A-Z0-9 ]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+
+        Matcher matcher = PLATE_PATTERN.matcher(cleanedText);
+        if (matcher.find()) {
+            return matcher.group().replaceAll("\\s+", "");
+        }
+
+        String compact = cleanedText.replaceAll("\\s+", "");
+        if (compact.matches("[A-Z]{1,2}\\d{2}[A-Z]{3}")) {
+            return compact;
         }
 
         return null;

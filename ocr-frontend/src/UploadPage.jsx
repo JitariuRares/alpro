@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './UploadPage.css';
+import { API_BASE_URL } from './config';
 
 function UploadPage() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -19,14 +20,48 @@ function UploadPage() {
     };
   }, [previewUrl]);
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
+  const normalizeFileForUpload = async (file) => {
+    if (!file || file.type !== 'image/webp') {
+      return file;
+    }
+
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0);
+
+    const convertedBlob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.92);
+    });
+
+    if (!convertedBlob) {
+      return file;
+    }
+
+    const normalizedName = file.name.replace(/\.[^/.]+$/, '') + '.jpg';
+    return new File([convertedBlob], normalizedName, { type: 'image/jpeg' });
+  };
+
+  const handleFileChange = async (event) => {
+    const inputFile = event.target.files[0];
 
     setCarData(null);
     setSuccessMessage('');
     setError('');
 
-    if (!file) {
+    if (!inputFile) {
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      return;
+    }
+
+    let file = inputFile;
+    try {
+      file = await normalizeFileForUpload(inputFile);
+    } catch (err) {
+      setError('Imaginea selectata nu a putut fi pregatita pentru upload.');
       setSelectedFile(null);
       setPreviewUrl(null);
       return;
@@ -50,7 +85,7 @@ function UploadPage() {
       const formData = new FormData();
       formData.append('image', selectedFile, selectedFile.name);
 
-      const response = await fetch('http://localhost:8080/api/ocr/full', {
+      const response = await fetch(`${API_BASE_URL}/api/ocr/full`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
@@ -121,7 +156,7 @@ function UploadPage() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8080/api/license-plates/${carData.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/license-plates/${carData.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

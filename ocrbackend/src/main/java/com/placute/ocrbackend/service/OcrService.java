@@ -13,8 +13,13 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -183,18 +188,50 @@ public class OcrService {
 
         LicensePlate saved = plateRepository.save(lp);
 
-        OcrHistory history = new OcrHistory(
+        String imageHash = computeSha256(imageFile);
+        LocalDateTime processedAt = LocalDateTime.now();
+        Optional<OcrHistory> existingHistory = historyRepository
+                .findTopByLicensePlate_IdOrderByProcessedAtDesc(saved.getId());
+
+        OcrHistory history = existingHistory.orElseGet(() -> new OcrHistory(
                 saved,
                 imageFile.getName(),
-                LocalDateTime.now(),
+                imageHash,
+                processedAt,
                 detection.confidence(),
                 saved.getBboxX(),
                 saved.getBboxY(),
                 saved.getBboxW(),
                 saved.getBboxH()
-        );
+        ));
+
+        history.setLicensePlate(saved);
+        history.setFilename(imageFile.getName());
+        history.setImageHash(imageHash);
+        history.setProcessedAt(processedAt);
+        history.setConfidence(detection.confidence());
+        history.setBboxX(saved.getBboxX());
+        history.setBboxY(saved.getBboxY());
+        history.setBboxW(saved.getBboxW());
+        history.setBboxH(saved.getBboxH());
         historyRepository.save(history);
 
         return saved;
+    }
+
+    private String computeSha256(File file) {
+        try {
+            byte[] content = Files.readAllBytes(file.toPath());
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashed = digest.digest(content);
+            StringBuilder sb = new StringBuilder(hashed.length * 2);
+            for (byte b : hashed) {
+                sb.append(String.format(Locale.ROOT, "%02x", b));
+            }
+            return sb.toString();
+        } catch (IOException | NoSuchAlgorithmException e) {
+            System.out.println("Nu s-a putut calcula hash-ul imaginii: " + e.getMessage());
+            return null;
+        }
     }
 }

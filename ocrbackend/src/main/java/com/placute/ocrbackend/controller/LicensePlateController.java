@@ -15,10 +15,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -45,12 +49,21 @@ public class LicensePlateController {
     @PreAuthorize("hasAnyRole('POLICE', 'INSURANCE')")
     @GetMapping("/{plateNumber}")
     public List<LicensePlate> getByPlateNumber(@PathVariable String plateNumber) {
-        return licensePlateRepository.findByPlateNumber(plateNumber);
+        return licensePlateRepository.findByPlateNumber(plateNumber.trim().toUpperCase(Locale.ROOT));
     }
 
     @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
     @PostMapping
     public LicensePlate savePlate(@RequestBody LicensePlate plate) {
+        if (plate == null || plate.getPlateNumber() == null || plate.getPlateNumber().isBlank()) {
+            throw new RuntimeException("Numarul placutei este obligatoriu.");
+        }
+        String normalizedPlate = plate.getPlateNumber().trim().toUpperCase(Locale.ROOT);
+        plate.setPlateNumber(normalizedPlate);
+
+        if (!licensePlateRepository.findByPlateNumber(normalizedPlate).isEmpty()) {
+            throw new RuntimeException("Placuta exista deja in baza de date.");
+        }
         if (plate.getDetectedAt() == null) {
             plate.setDetectedAt(LocalDateTime.now());
         }
@@ -80,13 +93,14 @@ public class LicensePlateController {
     @PreAuthorize("hasRole('POLICE')")
     @GetMapping("/pdf/{plateNumber}")
     public ResponseEntity<byte[]> exportPdf(@PathVariable String plateNumber) throws IOException {
-        List<LicensePlate> plates = licensePlateRepository.findByPlateNumber(plateNumber);
+        String normalizedPlate = plateNumber.trim().toUpperCase(Locale.ROOT);
+        List<LicensePlate> plates = licensePlateRepository.findByPlateNumber(normalizedPlate);
         if (plates.isEmpty()) {
             throw new RuntimeException("Placuta nu exista");
         }
         LicensePlate plate = plates.get(plates.size() - 1);
-        List<Insurance> insurances = insuranceRepository.findByLicensePlate_PlateNumber(plateNumber);
-        List<ParkingHistory> parking = parkingHistoryRepository.findByLicensePlate_PlateNumber(plateNumber);
+        List<Insurance> insurances = insuranceRepository.findByLicensePlate_PlateNumber(normalizedPlate);
+        List<ParkingHistory> parking = parkingHistoryRepository.findByLicensePlate_PlateNumber(normalizedPlate);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         Document document = new Document();
@@ -101,14 +115,14 @@ public class LicensePlateController {
             Font redFont = new Font(Font.FontFamily.HELVETICA, 12, Font.NORMAL, new BaseColor(139, 0, 0)); // roșu sobru
             Font grayFont = new Font(Font.FontFamily.HELVETICA, 10, Font.ITALIC, new BaseColor(102, 102, 102)); // gri footer
 
-            Paragraph title = new Paragraph("Fisa completa pentru placuta: " + plateNumber, titleFont);
+            Paragraph title = new Paragraph("Fisa completa pentru placuta: " + normalizedPlate, titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
             title.setSpacingAfter(20);
             document.add(title);
 
             if (plate.getImagePath() != null) {
                 try {
-                    Image img = Image.getInstance(plate.getImagePath());
+                    Image img = loadImageForPdf(plate.getImagePath());
                     img.scaleToFit(400, 200);
                     img.setAlignment(Image.ALIGN_CENTER);
                     document.add(img);
@@ -205,9 +219,28 @@ public class LicensePlateController {
 
         byte[] pdfBytes = out.toByteArray();
         return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=plate_" + plateNumber + ".pdf")
+                .header("Content-Disposition", "attachment; filename=plate_" + normalizedPlate + ".pdf")
                 .contentType(Objects.requireNonNull(MediaType.APPLICATION_PDF))
                 .body(pdfBytes);
+    }
+
+    private Image loadImageForPdf(String imagePath) throws IOException, BadElementException {
+        try {
+            return Image.getInstance(imagePath);
+        } catch (Exception ignored) {
+            BufferedImage buffered = ImageIO.read(new File(imagePath));
+            if (buffered == null) {
+                throw new IOException("Format imagine nesuportat pentru PDF");
+            }
+
+            ByteArrayOutputStream imageBuffer = new ByteArrayOutputStream();
+            boolean writeOk = ImageIO.write(buffered, "png", imageBuffer);
+            if (!writeOk) {
+                throw new IOException("Nu s-a putut converti imaginea pentru PDF");
+            }
+
+            return Image.getInstance(imageBuffer.toByteArray());
+        }
     }
 
 

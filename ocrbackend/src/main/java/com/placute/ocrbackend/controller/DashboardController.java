@@ -37,7 +37,7 @@ public class DashboardController {
 
         String token = authHeader.substring(7);
         String username = jwtService.extractUsername(token);
-        AppUser user = appUserRepository.findTopByUsernameOrderByIdDesc(username)
+        AppUser user = appUserRepository.findTopByUsernameIgnoreCaseOrderByIdDesc(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Map<String, Object> response = new HashMap<>();

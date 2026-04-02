@@ -1,10 +1,22 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import './App.css';
+import { isJwtExpired } from './jwt';
 
 function Navbar() {
   const navigate = useNavigate();
-  const isLoggedIn = !!localStorage.getItem('token');
+  const token = localStorage.getItem('token');
+  const isLoggedIn = !!token && !isJwtExpired(token);
+
+  useEffect(() => {
+    if (token && !isLoggedIn) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      localStorage.removeItem('username');
+      navigate('/login');
+    }
+  }, [isLoggedIn, navigate, token]);
+
   const username = localStorage.getItem('username');
   const role = localStorage.getItem('role');
 

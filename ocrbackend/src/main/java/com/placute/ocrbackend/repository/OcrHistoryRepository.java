@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 
 public interface OcrHistoryRepository extends JpaRepository<OcrHistory, Long> {
@@ -21,4 +22,6 @@ public interface OcrHistoryRepository extends JpaRepository<OcrHistory, Long> {
             order by h.processedAt desc
             """)
     List<OcrHistory> findByPlateNumberContainingWithLicensePlateOrderByProcessedAtDesc(@Param("fragment") String fragment);
+
+    Optional<OcrHistory> findTopByLicensePlate_IdOrderByProcessedAtDesc(Long licensePlateId);
 }

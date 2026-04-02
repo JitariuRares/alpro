@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     Optional<AppUser> findByUsername(String username);
     Optional<AppUser> findTopByUsernameOrderByIdDesc(String username);
+    Optional<AppUser> findTopByUsernameIgnoreCaseOrderByIdDesc(String username);
     List<AppUser> findAllByUsernameOrderByIdDesc(String username);
     boolean existsByUsername(String username);
+    boolean existsByUsernameIgnoreCase(String username);
 }

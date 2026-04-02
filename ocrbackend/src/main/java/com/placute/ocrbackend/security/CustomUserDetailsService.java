@@ -19,7 +19,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        AppUser appUser = userRepository.findTopByUsernameOrderByIdDesc(username)
+        AppUser appUser = userRepository.findTopByUsernameIgnoreCaseOrderByIdDesc(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Userul nu a fost gasit"));
 
         return User.withUsername(appUser.getUsername())

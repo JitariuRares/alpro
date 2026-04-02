@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/parking")
@@ -25,7 +26,21 @@ public class ParkingHistoryController {
     @PreAuthorize("hasAnyRole('PARKING', 'POLICE')")
     @PostMapping
     public ResponseEntity<?> addParkingRecord(@RequestBody ParkingHistory record) {
-        String plateNumber = record.getLicensePlate().getPlateNumber();
+        if (record == null || record.getLicensePlate() == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Datele parcarii sunt invalide.");
+        }
+        if (record.getEntryTime() == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Data de intrare este obligatorie.");
+        }
+        if (record.getExitTime() != null && record.getExitTime().isBefore(record.getEntryTime())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Data de iesire nu poate fi inainte de intrare.");
+        }
+
+        String rawPlate = record.getLicensePlate().getPlateNumber();
+        String plateNumber = rawPlate == null ? "" : rawPlate.trim().toUpperCase(Locale.ROOT);
+        if (plateNumber.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Numarul placutei este obligatoriu.");
+        }
 
         List<LicensePlate> plates = licensePlateRepository.findByPlateNumber(plateNumber);
         if (plates.isEmpty()) {

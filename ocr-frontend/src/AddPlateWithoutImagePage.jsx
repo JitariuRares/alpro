@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from './config';
 
 function AddPlateWithoutImagePage() {
   const [form, setForm] = useState({
@@ -24,8 +25,17 @@ function AddPlateWithoutImagePage() {
       return;
     }
 
+    const normalizedPlate = form.plateNumber.trim().toUpperCase();
+    const payload = {
+      ...form,
+      plateNumber: normalizedPlate,
+      brand: form.brand.trim(),
+      model: form.model.trim(),
+      owner: form.owner.trim()
+    };
+
     try {
-      const checkRes = await fetch(`http://localhost:8080/api/license-plates/${form.plateNumber}`, {
+      const checkRes = await fetch(`${API_BASE_URL}/api/license-plates/${encodeURIComponent(normalizedPlate)}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
         },
@@ -37,13 +47,13 @@ function AddPlateWithoutImagePage() {
         return;
       }
 
-      const res = await fetch('http://localhost:8080/api/license-plates', {
+      const res = await fetch(`${API_BASE_URL}/api/license-plates`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {

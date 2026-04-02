@@ -5,6 +5,7 @@ import com.placute.ocrbackend.model.LicensePlate;
 import com.placute.ocrbackend.repository.LicensePlateRepository;
 import com.placute.ocrbackend.service.OcrService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -20,7 +21,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -33,10 +36,13 @@ public class OcrController {
     @Autowired
     private LicensePlateRepository plateRepository;
 
+    @Value("${app.upload-dir:uploads}")
+    private String uploadDir;
+
     @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
     @PostMapping("/ocr")
     public ResponseEntity<String> uploadImage(@RequestParam("image") MultipartFile file) throws IOException {
-        File convFile = toUniqueTempFile(file);
+        File convFile = toStoredUploadFile(file);
         String result = ocrService.recognizeText(convFile);
         return ResponseEntity.ok(result);
     }
@@ -44,7 +50,7 @@ public class OcrController {
     @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
     @PostMapping("/ocr/full")
     public ResponseEntity<?> uploadImageFull(@RequestParam("image") MultipartFile file) throws IOException {
-        File convFile = toUniqueTempFile(file);
+        File convFile = toStoredUploadFile(file);
 
         OcrService.OcrDetectionResult detection = ocrService.recognizeAndReturnPlate(convFile);
         if (detection == null) {
@@ -85,17 +91,39 @@ public class OcrController {
         return ResponseEntity.ok(plates);
     }
 
-    private File toUniqueTempFile(MultipartFile file) throws IOException {
-        String originalName = Objects.requireNonNullElse(file.getOriginalFilename(), "upload.bin");
-        String suffix = ".bin";
-        int lastDot = originalName.lastIndexOf('.');
-        if (lastDot >= 0 && lastDot < originalName.length() - 1) {
-            suffix = originalName.substring(lastDot);
+    private File toStoredUploadFile(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("Fisierul incarcat este gol.");
         }
 
-        Path tempPath = Files.createTempFile("alpro-upload-", suffix);
-        File tempFile = tempPath.toFile();
-        file.transferTo(tempFile);
-        return tempFile;
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            throw new RuntimeException("Se accepta doar fisiere imagine.");
+        }
+
+        String originalName = Objects.requireNonNullElse(file.getOriginalFilename(), "upload.bin");
+        String suffix = resolveSuffix(originalName);
+        String uniqueName = "alpro-upload-" + UUID.randomUUID() + suffix;
+
+        Path uploadRoot = Path.of(uploadDir).toAbsolutePath().normalize();
+        Files.createDirectories(uploadRoot);
+        Path targetPath = uploadRoot.resolve(uniqueName).normalize();
+        if (!targetPath.startsWith(uploadRoot)) {
+            throw new IOException("Calea de upload este invalida.");
+        }
+
+        file.transferTo(targetPath);
+        return targetPath.toFile();
+    }
+
+    private String resolveSuffix(String originalName) {
+        int lastDot = originalName.lastIndexOf('.');
+        if (lastDot >= 0 && lastDot < originalName.length() - 1) {
+            String extension = originalName.substring(lastDot).toLowerCase(Locale.ROOT);
+            if (extension.matches("^\\.[a-z0-9]{1,8}$")) {
+                return extension;
+            }
+        }
+        return ".bin";
     }
 }

@@ -37,7 +37,7 @@ public class OcrHistoryController {
                             lp.getBrand(),
                             lp.getModel(),
                             lp.getOwner(),
-                            h.getFilename(),
+                            lp.getImagePath(),
                             h.getProcessedAt(),
                             h.getConfidence(),
                             bboxDto
@@ -68,7 +68,7 @@ public class OcrHistoryController {
                             lp.getBrand(),
                             lp.getModel(),
                             lp.getOwner(),
-                            h.getFilename(),
+                            lp.getImagePath(),
                             h.getProcessedAt(),
                             h.getConfidence(),
                             bboxDto

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from './config';
 
 function InsuranceSearchPage() {
   const [plateNumber, setPlateNumber] = useState('');
@@ -15,7 +16,8 @@ function InsuranceSearchPage() {
     }
 
     try {
-      const res = await fetch(`http://localhost:8080/api/insurance/${plateNumber}`, {
+      const normalizedPlate = plateNumber.trim().toUpperCase();
+      const res = await fetch(`${API_BASE_URL}/api/insurance/${encodeURIComponent(normalizedPlate)}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from './config';
 
 function AddInsurancePage() {
   const [plateNumber, setPlateNumber] = useState('');
@@ -20,7 +21,8 @@ function AddInsurancePage() {
     }
 
     try {
-      const plateRes = await fetch(`http://localhost:8080/api/license-plates/${plateNumber}`, {
+      const normalizedPlate = plateNumber.trim().toUpperCase();
+      const plateRes = await fetch(`${API_BASE_URL}/api/license-plates/${encodeURIComponent(normalizedPlate)}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token') || ''}`
         }
@@ -33,13 +35,13 @@ function AddInsurancePage() {
 
       const plate = plates[0];
       const insurancePayload = {
-        company,
+        company: company.trim(),
         validFrom,
         validTo,
-        licensePlate: { id: plate.id }
+        licensePlate: { id: plate.id, plateNumber: normalizedPlate }
       };
 
-      const insuranceRes = await fetch(`http://localhost:8080/api/insurance`, {
+      const insuranceRes = await fetch(`${API_BASE_URL}/api/insurance`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

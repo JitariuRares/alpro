@@ -5,7 +5,10 @@ import java.time.LocalDateTime;
 
 
 @Entity
-@Table(name = "ocr_history")
+@Table(
+        name = "ocr_history",
+        uniqueConstraints = @UniqueConstraint(name = "uk_ocr_history_license_plate", columnNames = "license_plate_id")
+)
 public class OcrHistory {
 
     @Id
@@ -19,6 +22,9 @@ public class OcrHistory {
 
     @Column(name = "filename")
     private String filename;
+
+    @Column(name = "image_hash", length = 64)
+    private String imageHash;
 
     @Column(name = "processed_at", nullable = false)
     private LocalDateTime processedAt;
@@ -44,6 +50,7 @@ public class OcrHistory {
     public OcrHistory(
             LicensePlate licensePlate,
             String filename,
+            String imageHash,
             LocalDateTime processedAt,
             Double confidence,
             Integer bboxX,
@@ -53,6 +60,7 @@ public class OcrHistory {
     ) {
         this.licensePlate = licensePlate;
         this.filename = filename;
+        this.imageHash = imageHash;
         this.processedAt = processedAt;
         this.confidence = confidence;
         this.bboxX = bboxX;
@@ -78,6 +86,13 @@ public class OcrHistory {
     }
     public void setFilename(String filename) {
         this.filename = filename;
+    }
+
+    public String getImageHash() {
+        return imageHash;
+    }
+    public void setImageHash(String imageHash) {
+        this.imageHash = imageHash;
     }
 
     public LocalDateTime getProcessedAt() {

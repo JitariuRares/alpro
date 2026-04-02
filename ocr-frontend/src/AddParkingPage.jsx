@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from './config';
 
 function AddParkingPage() {
   const [plateNumber, setPlateNumber] = useState('');
@@ -15,7 +16,8 @@ function AddParkingPage() {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:8080/api/parking`, {
+      const normalizedPlate = plateNumber.trim().toUpperCase();
+      const response = await fetch(`${API_BASE_URL}/api/parking`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -25,7 +27,7 @@ function AddParkingPage() {
           entryTime,
           exitTime,
           licensePlate: {
-            plateNumber
+            plateNumber: normalizedPlate
           }
         })
       });

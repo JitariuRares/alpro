@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from './config';
 
 function ParkingSearchPage() {
   const [plateNumber, setPlateNumber] = useState('');
@@ -13,7 +14,8 @@ function ParkingSearchPage() {
     setResults([]);
 
     try {
-      const response = await fetch(`http://localhost:8080/api/parking/${plateNumber}`, {
+      const normalizedPlate = plateNumber.trim().toUpperCase();
+      const response = await fetch(`${API_BASE_URL}/api/parking/${encodeURIComponent(normalizedPlate)}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }

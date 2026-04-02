@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
   CartesianGrid
 } from 'recharts';
+import { API_BASE_URL } from './config';
 
 function DashboardPage() {
   const [stats, setStats] = useState(null);
@@ -16,7 +17,7 @@ function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch('http://localhost:8080/api/dashboard/stats', {
+        const res = await fetch(`${API_BASE_URL}/api/dashboard/stats`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`
           }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from './config';
 
 function PlateSearchPage() {
   const [query, setQuery] = useState('');
@@ -22,7 +23,7 @@ function PlateSearchPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:8080/plates/history/search?query=${encodeURIComponent(q)}`,
+        `${API_BASE_URL}/plates/history/search?query=${encodeURIComponent(q)}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
@@ -53,7 +54,7 @@ function PlateSearchPage() {
     try {
       const token = localStorage.getItem('token') || '';
       const response = await fetch(
-        `http://localhost:8080/api/license-plates/pdf/${encodeURIComponent(plateNumber)}`,
+        `${API_BASE_URL}/api/license-plates/pdf/${encodeURIComponent(plateNumber)}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

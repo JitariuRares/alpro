@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './LoginPage.css';
+import { API_BASE_URL } from './config';
+import { parseJwt } from './jwt';
 
 function LoginPage() {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -21,31 +23,44 @@ function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    const response = await fetch('http://localhost:8080/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
 
-    if (response.ok) {
-      const data = await response.json();
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('username', username);
-      const decoded = JSON.parse(atob(data.token.split('.')[1]));
-      localStorage.setItem('role', decoded.role);
-      navigate('/upload');
-    } else {
-      setError('Autentificare esuata');
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const payload = parseJwt(data.token);
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('username', username.trim());
+        if (payload?.role) {
+          localStorage.setItem('role', payload.role);
+        } else {
+          localStorage.removeItem('role');
+        }
+
+        const params = new URLSearchParams(location.search);
+        const redirectTo = params.get('redirect') || '/upload';
+        navigate(redirectTo);
+      } else {
+        const msg = await response.text();
+        setError(msg || 'Autentificare esuata');
+      }
+    } catch (err) {
+      setError('Eroare de retea. Incearca din nou.');
     }
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
-    const response = await fetch('http://localhost:8080/auth/register', {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, role }),
+      body: JSON.stringify({ username: username.trim(), password, role }),
     });
 
     if (response.ok) {

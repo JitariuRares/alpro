@@ -12,6 +12,7 @@ import ParkingSearchPage from './ParkingSearchPage';
 import Navbar from './Navbar'; 
 import AddPlateWithoutImagePage from './AddPlateWithoutImagePage';
 import DashboardPage from './DashboardPage';
+import VideoAlprPage from './VideoAlprPage';
 
 
 import './App.css';
@@ -27,6 +28,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<Navigate to="/upload" replace />} />
             <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
+            <Route path="/video-alpr" element={<ProtectedRoute><VideoAlprPage /></ProtectedRoute>} />
             <Route path="/search" element={<ProtectedRoute><PlateSearchPage /></ProtectedRoute>} />
             <Route path="/add-insurance" element={<ProtectedRoute><AddInsurancePage /></ProtectedRoute>} />
             <Route path="/search-insurance" element={<ProtectedRoute><InsuranceSearchPage /></ProtectedRoute>} />

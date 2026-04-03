@@ -36,8 +36,13 @@ function Navbar() {
                 <NavLink to="/upload" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                   Upload
                 </NavLink>
+                {(role === 'PARKING' || role === 'POLICE') && (
+                  <NavLink to="/video-alpr" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+                    Video ALPR
+                  </NavLink>
+                )}
                 <NavLink to="/search" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
-                  Caută plăcuță
+                  Cauta placuta
                 </NavLink>
                 <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
                   Dashboard
@@ -69,10 +74,10 @@ function Navbar() {
                     Cauta parcare
                   </NavLink>
                 )}
+
                 <button onClick={handleLogout} className="nav-link">
                   Logout
                 </button>
-
               </nav>
 
               <div className="nav-user">

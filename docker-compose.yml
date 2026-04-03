@@ -24,6 +24,8 @@ services:
     environment:
       OMP_NUM_THREADS: "1"
       YOLO_CONFIG_DIR: "/tmp"
+      VIDEO_MIN_CONFIDENCE: ${VIDEO_MIN_CONFIDENCE:-0.70}
+      VIDEO_EMIT_MIN_FRAME_GAP: ${VIDEO_EMIT_MIN_FRAME_GAP:-12}
     ports:
       - "8000:8000"
     volumes:
@@ -52,13 +54,19 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       OPENAI_API_KEY: ${OPENAI_API_KEY_DOCKER:-}
       ALPR_ML_BASE_URL: http://alpr-ml:8000
+      ALPR_ML_VIDEO_TIMEOUT_SECONDS: ${ALPR_ML_VIDEO_TIMEOUT_SECONDS:-600}
+      ALPR_VIDEO_MIN_CONFIDENCE: ${ALPR_VIDEO_MIN_CONFIDENCE:-0.70}
+      ALPR_VIDEO_MIN_FRAME_GAP_PER_TRACK: ${ALPR_VIDEO_MIN_FRAME_GAP_PER_TRACK:-12}
       ALPR_FALLBACK_OPENAI_ENABLED: ${ALPR_FALLBACK_OPENAI_ENABLED:-false}
       JWT_SECRET: ${JWT_SECRET:-dev-only-change-this-jwt-secret-min-32-chars}
       AUTH_PUBLIC_REGISTER_ALLOWED_ROLES: ${AUTH_PUBLIC_REGISTER_ALLOWED_ROLES:-PARKING}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:3000}
-      APP_UPLOAD_DIR: ${APP_UPLOAD_DIR:-uploads}
+      APP_UPLOAD_DIR: ${APP_UPLOAD_DIR:-/app/uploads}
+      APP_MAX_UPLOAD_FILE_SIZE: ${APP_MAX_UPLOAD_FILE_SIZE:-200MB}
     ports:
       - "8080:8080"
+    volumes:
+      - backend_uploads:/app/uploads
 
   frontend:
     build:
@@ -74,3 +82,4 @@ volumes:
   pgdata:
   alpr_ml_cache:
   alpr_ml_paddle:
+  backend_uploads:

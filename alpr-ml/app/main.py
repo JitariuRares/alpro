@@ -1,9 +1,10 @@
 import io
 import os
 import re
+import tempfile
 import time
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 # Keep CPU threading predictable in container startup.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -12,12 +13,39 @@ os.environ.setdefault("MKL_NUM_THREADS", "1")
 
 import cv2
 import numpy as np
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from PIL import Image
 
 app = FastAPI(title="ALPR ML Service", version="0.2.0")
 
-PLATE_PATTERN = re.compile(r"[A-Z]{1,2}\d{2}[A-Z]{3}")
+BUCHAREST_PATTERN = re.compile(r"^B\d{3}[A-Z]{3}$")
+COUNTY_PATTERN = re.compile(r"^[A-Z]{2}\d{2}[A-Z]{3}$")
+
+DIGIT_LIKE_MAP = {
+    "O": "0",
+    "Q": "0",
+    "D": "0",
+    "I": "1",
+    "L": "1",
+    "Z": "2",
+    "S": "5",
+    "G": "6",
+    "T": "7",
+    "B": "8",
+}
+
+LETTER_LIKE_MAP = {
+    "0": "O",
+    "1": "I",
+    "2": "Z",
+    "3": "B",
+    "4": "A",
+    "5": "S",
+    "6": "G",
+    "7": "T",
+    "8": "B",
+    "9": "P",
+}
 
 
 @dataclass
@@ -25,6 +53,14 @@ class Candidate:
     text: str
     confidence: float
     bbox: dict
+
+
+@dataclass
+class TrackState:
+    track_id: int
+    plate_text: str
+    bbox: dict
+    last_frame_index: int
 
 
 class AlprPipeline:
@@ -37,6 +73,13 @@ class AlprPipeline:
         self.yolo_conf = float(os.getenv("YOLO_CONFIDENCE_THRESHOLD", "0.25"))
         self.yolo_size = int(os.getenv("YOLO_IMAGE_SIZE", "640"))
         self.ocr_lang = os.getenv("PADDLE_OCR_LANG", "en")
+        self.video_default_frame_step = int(os.getenv("VIDEO_DEFAULT_FRAME_STEP", "3"))
+        self.video_default_max_frames = int(os.getenv("VIDEO_DEFAULT_MAX_FRAMES", "0"))
+        self.video_max_detections_per_frame = int(os.getenv("VIDEO_MAX_DETECTIONS_PER_FRAME", "2"))
+        self.video_track_iou_threshold = float(os.getenv("VIDEO_TRACK_IOU_THRESHOLD", "0.2"))
+        self.video_track_max_gap_frames = int(os.getenv("VIDEO_TRACK_MAX_GAP_FRAMES", "10"))
+        self.video_min_confidence = float(os.getenv("VIDEO_MIN_CONFIDENCE", "0.70"))
+        self.video_emit_min_frame_gap = int(os.getenv("VIDEO_EMIT_MIN_FRAME_GAP", "12"))
 
         self._load_detector()
         self._load_ocr()
@@ -114,6 +157,116 @@ class AlprPipeline:
             ],
             "processingMs": processing_ms,
         }
+
+    def infer_video(self, video_bytes: bytes, frame_step: Optional[int], max_frames: Optional[int]) -> dict:
+        started_at = time.perf_counter()
+
+        normalized_frame_step = self._normalize_frame_step(frame_step)
+        normalized_max_frames = self._normalize_max_frames(max_frames)
+
+        temp_path = ""
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+                tmp.write(video_bytes)
+                temp_path = tmp.name
+
+            cap = cv2.VideoCapture(temp_path)
+            if not cap.isOpened():
+                raise HTTPException(status_code=400, detail="Fisierul incarcat nu este un video valid")
+
+            fps = float(cap.get(cv2.CAP_PROP_FPS) or 0.0)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+
+            detections = []
+            tracks: List[TrackState] = []
+            track_text_scores: Dict[int, Dict[str, float]] = {}
+            track_last_emitted: Dict[int, Tuple[int, str]] = {}
+            next_track_id = 1
+            frame_index = -1
+            sampled_frames = 0
+
+            while True:
+                ok, frame = cap.read()
+                if not ok:
+                    break
+
+                frame_index += 1
+                if frame_index % normalized_frame_step != 0:
+                    continue
+
+                sampled_frames += 1
+                if normalized_max_frames is not None and sampled_frames > normalized_max_frames:
+                    break
+
+                frame_candidates = self._detect_and_read(frame)
+                if not frame_candidates:
+                    continue
+
+                timestamp_ms = int(cap.get(cv2.CAP_PROP_POS_MSEC) or 0)
+                for candidate in frame_candidates[: self.video_max_detections_per_frame]:
+                    matched_track = self._match_track(candidate, frame_index, tracks)
+                    if matched_track is None:
+                        matched_track = TrackState(
+                            track_id=next_track_id,
+                            plate_text=candidate.text,
+                            bbox=candidate.bbox,
+                            last_frame_index=frame_index,
+                        )
+                        tracks.append(matched_track)
+                        next_track_id += 1
+                    else:
+                        matched_track.plate_text = candidate.text
+                        matched_track.bbox = candidate.bbox
+                        matched_track.last_frame_index = frame_index
+
+                    if candidate.confidence < self.video_min_confidence:
+                        continue
+
+                    track_id = matched_track.track_id
+                    text_scores = track_text_scores.setdefault(track_id, {})
+                    text_scores[candidate.text] = text_scores.get(candidate.text, 0.0) + candidate.confidence
+                    stable_plate = max(text_scores.items(), key=lambda entry: entry[1])[0]
+
+                    last_emitted = track_last_emitted.get(track_id)
+                    if (
+                        last_emitted is not None
+                        and last_emitted[1] == stable_plate
+                        and (frame_index - last_emitted[0]) < self.video_emit_min_frame_gap
+                    ):
+                        continue
+
+                    detections.append(
+                        {
+                            "frameIndex": frame_index,
+                            "timestampMs": timestamp_ms,
+                            "trackId": track_id,
+                            "plateText": stable_plate,
+                            "confidence": round(candidate.confidence, 4),
+                            "bbox": candidate.bbox,
+                        }
+                    )
+                    track_last_emitted[track_id] = (frame_index, stable_plate)
+
+                self._prune_tracks(tracks, frame_index)
+
+            cap.release()
+
+            processing_ms = int((time.perf_counter() - started_at) * 1000)
+            return {
+                "frameStep": normalized_frame_step,
+                "maxFrames": normalized_max_frames,
+                "fps": round(fps, 3) if fps > 0 else None,
+                "totalFrames": total_frames,
+                "processedFrames": sampled_frames,
+                "detections": detections,
+                "processingMs": processing_ms,
+            }
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
 
     def _decode_image(self, image_bytes: bytes) -> Optional[np.ndarray]:
         np_buffer = np.frombuffer(image_bytes, dtype=np.uint8)
@@ -213,11 +366,117 @@ class AlprPipeline:
         if not cleaned:
             return None
 
-        matched = PLATE_PATTERN.search(cleaned)
-        if matched:
-            return matched.group(0)
+        # Romanian plate format is length 7 after removing separators.
+        if len(cleaned) < 7:
+            return None
+
+        for i in range(0, len(cleaned) - 6):
+            candidate = cleaned[i : i + 7]
+            normalized = self._normalize_ro_candidate(candidate)
+            if normalized is not None:
+                return normalized
 
         return None
+
+    def _normalize_ro_candidate(self, candidate: str) -> Optional[str]:
+        if len(candidate) != 7:
+            return None
+
+        if candidate[0] == "B":
+            digits = "".join(self._normalize_digit_slot(ch) for ch in candidate[1:4])
+            letters = "".join(self._normalize_letter_slot(ch) for ch in candidate[4:7])
+            normalized = f"B{digits}{letters}"
+            if BUCHAREST_PATTERN.match(normalized):
+                return normalized
+            return None
+
+        county = "".join(self._normalize_letter_slot(ch) for ch in candidate[0:2])
+        digits = "".join(self._normalize_digit_slot(ch) for ch in candidate[2:4])
+        letters = "".join(self._normalize_letter_slot(ch) for ch in candidate[4:7])
+        normalized = f"{county}{digits}{letters}"
+        if COUNTY_PATTERN.match(normalized):
+            return normalized
+        return None
+
+    def _normalize_digit_slot(self, value: str) -> str:
+        if value.isdigit():
+            return value
+        return DIGIT_LIKE_MAP.get(value, value)
+
+    def _normalize_letter_slot(self, value: str) -> str:
+        if "A" <= value <= "Z":
+            return value
+        return LETTER_LIKE_MAP.get(value, value)
+
+    def _normalize_frame_step(self, frame_step: Optional[int]) -> int:
+        if frame_step is None:
+            return max(1, self.video_default_frame_step)
+        return max(1, min(int(frame_step), 120))
+
+    def _normalize_max_frames(self, max_frames: Optional[int]) -> Optional[int]:
+        if max_frames is None:
+            max_frames = self.video_default_max_frames
+
+        if max_frames is None or int(max_frames) <= 0:
+            return None
+
+        return min(int(max_frames), 5000)
+
+    def _match_track(
+        self, candidate: Candidate, frame_index: int, tracks: List[TrackState]
+    ) -> Optional[TrackState]:
+        best_track = None
+        best_score = self.video_track_iou_threshold
+
+        for track in tracks:
+            frame_gap = frame_index - track.last_frame_index
+            if frame_gap > self.video_track_max_gap_frames:
+                continue
+
+            iou_score = self._bbox_iou(candidate.bbox, track.bbox)
+            if candidate.text == track.plate_text:
+                iou_score += 0.15
+
+            if iou_score >= best_score:
+                best_score = iou_score
+                best_track = track
+
+        return best_track
+
+    def _prune_tracks(self, tracks: List[TrackState], frame_index: int) -> None:
+        tracks[:] = [
+            track
+            for track in tracks
+            if (frame_index - track.last_frame_index) <= self.video_track_max_gap_frames
+        ]
+
+    def _bbox_iou(self, first: dict, second: dict) -> float:
+        if not first or not second:
+            return 0.0
+
+        ax1, ay1 = first["x"], first["y"]
+        ax2, ay2 = ax1 + first["w"], ay1 + first["h"]
+        bx1, by1 = second["x"], second["y"]
+        bx2, by2 = bx1 + second["w"], by1 + second["h"]
+
+        inter_x1 = max(ax1, bx1)
+        inter_y1 = max(ay1, by1)
+        inter_x2 = min(ax2, bx2)
+        inter_y2 = min(ay2, by2)
+
+        inter_w = max(0, inter_x2 - inter_x1)
+        inter_h = max(0, inter_y2 - inter_y1)
+        intersection = inter_w * inter_h
+        if intersection <= 0:
+            return 0.0
+
+        area_a = max(1, first["w"] * first["h"])
+        area_b = max(1, second["w"] * second["h"])
+        union = area_a + area_b - intersection
+        if union <= 0:
+            return 0.0
+
+        return float(intersection / union)
 
 
 pipeline = AlprPipeline()
@@ -247,3 +506,16 @@ async def infer_car_image(image: UploadFile = File(...)) -> dict:
         raise HTTPException(status_code=400, detail="Fisierul incarcat nu este o imagine valida") from exc
 
     return pipeline.infer(content)
+
+
+@app.post("/infer/video")
+async def infer_video(
+    video: UploadFile = File(...),
+    frame_step: Optional[int] = Form(None),
+    max_frames: Optional[int] = Form(None),
+) -> dict:
+    content = await video.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Video gol")
+
+    return pipeline.infer_video(content, frame_step=frame_step, max_frames=max_frames)

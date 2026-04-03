@@ -53,8 +53,8 @@ public class SecurityConfig {
         config.setAllowedOrigins(origins.isEmpty() ? List.of("http://localhost:3000") : origins);
         config.setAllowCredentials(false);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        config.setExposedHeaders(List.of("Authorization"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Range"));
+        config.setExposedHeaders(List.of("Authorization", "Accept-Ranges", "Content-Range"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

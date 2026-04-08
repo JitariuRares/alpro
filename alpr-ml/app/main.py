@@ -1,4 +1,5 @@
 import io
+import math
 import os
 import re
 import tempfile
@@ -20,6 +21,51 @@ app = FastAPI(title="ALPR ML Service", version="0.2.0")
 
 BUCHAREST_PATTERN = re.compile(r"^B\d{3}[A-Z]{3}$")
 COUNTY_PATTERN = re.compile(r"^[A-Z]{2}\d{2}[A-Z]{3}$")
+VALID_COUNTY_CODES = {
+    "AB",
+    "AR",
+    "AG",
+    "BC",
+    "BH",
+    "BN",
+    "BT",
+    "BV",
+    "BR",
+    "BZ",
+    "CS",
+    "CL",
+    "CJ",
+    "CT",
+    "CV",
+    "DB",
+    "DJ",
+    "GL",
+    "GR",
+    "GJ",
+    "HR",
+    "HD",
+    "IL",
+    "IS",
+    "IF",
+    "MM",
+    "MH",
+    "MS",
+    "NT",
+    "OT",
+    "PH",
+    "SM",
+    "SJ",
+    "SB",
+    "SV",
+    "TR",
+    "TM",
+    "TL",
+    "VS",
+    "VL",
+    "VN",
+}
+FORBIDDEN_SERIES_PREFIX = {"I", "O"}
+FORBIDDEN_SERIES_VALUES = {"III", "OOO"}
 
 DIGIT_LIKE_MAP = {
     "O": "0",
@@ -75,6 +121,7 @@ class AlprPipeline:
         self.ocr_lang = os.getenv("PADDLE_OCR_LANG", "en")
         self.video_default_frame_step = int(os.getenv("VIDEO_DEFAULT_FRAME_STEP", "3"))
         self.video_default_max_frames = int(os.getenv("VIDEO_DEFAULT_MAX_FRAMES", "0"))
+        self.video_target_processed_frames = int(os.getenv("VIDEO_TARGET_PROCESSED_FRAMES", "700"))
         self.video_max_detections_per_frame = int(os.getenv("VIDEO_MAX_DETECTIONS_PER_FRAME", "2"))
         self.video_track_iou_threshold = float(os.getenv("VIDEO_TRACK_IOU_THRESHOLD", "0.2"))
         self.video_track_max_gap_frames = int(os.getenv("VIDEO_TRACK_MAX_GAP_FRAMES", "10"))
@@ -161,9 +208,6 @@ class AlprPipeline:
     def infer_video(self, video_bytes: bytes, frame_step: Optional[int], max_frames: Optional[int]) -> dict:
         started_at = time.perf_counter()
 
-        normalized_frame_step = self._normalize_frame_step(frame_step)
-        normalized_max_frames = self._normalize_max_frames(max_frames)
-
         temp_path = ""
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
@@ -176,6 +220,11 @@ class AlprPipeline:
 
             fps = float(cap.get(cv2.CAP_PROP_FPS) or 0.0)
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+            normalized_frame_step, normalized_max_frames = self._resolve_video_sampling(
+                frame_step=frame_step,
+                max_frames=max_frames,
+                total_frames=total_frames,
+            )
 
             detections = []
             tracks: List[TrackState] = []
@@ -386,7 +435,7 @@ class AlprPipeline:
             digits = "".join(self._normalize_digit_slot(ch) for ch in candidate[1:4])
             letters = "".join(self._normalize_letter_slot(ch) for ch in candidate[4:7])
             normalized = f"B{digits}{letters}"
-            if BUCHAREST_PATTERN.match(normalized):
+            if BUCHAREST_PATTERN.match(normalized) and self._is_valid_series_letters(letters):
                 return normalized
             return None
 
@@ -394,7 +443,11 @@ class AlprPipeline:
         digits = "".join(self._normalize_digit_slot(ch) for ch in candidate[2:4])
         letters = "".join(self._normalize_letter_slot(ch) for ch in candidate[4:7])
         normalized = f"{county}{digits}{letters}"
-        if COUNTY_PATTERN.match(normalized):
+        if (
+            county in VALID_COUNTY_CODES
+            and COUNTY_PATTERN.match(normalized)
+            and self._is_valid_series_letters(letters)
+        ):
             return normalized
         return None
 
@@ -407,6 +460,15 @@ class AlprPipeline:
         if "A" <= value <= "Z":
             return value
         return LETTER_LIKE_MAP.get(value, value)
+
+    def _is_valid_series_letters(self, letters: str) -> bool:
+        if len(letters) != 3:
+            return False
+        if letters in FORBIDDEN_SERIES_VALUES:
+            return False
+        if letters[0] in FORBIDDEN_SERIES_PREFIX:
+            return False
+        return True
 
     def _normalize_frame_step(self, frame_step: Optional[int]) -> int:
         if frame_step is None:
@@ -421,6 +483,26 @@ class AlprPipeline:
             return None
 
         return min(int(max_frames), 5000)
+
+    def _resolve_video_sampling(
+        self,
+        frame_step: Optional[int],
+        max_frames: Optional[int],
+        total_frames: int,
+    ) -> tuple[int, Optional[int]]:
+        normalized_frame_step = self._normalize_frame_step(frame_step)
+        normalized_max_frames = self._normalize_max_frames(max_frames)
+
+        # Auto sampling for simple UX: keep the processed frame count around a target.
+        if frame_step is None and total_frames > 0 and self.video_target_processed_frames > 0:
+            auto_step = max(1, math.ceil(total_frames / self.video_target_processed_frames))
+            normalized_frame_step = max(normalized_frame_step, min(auto_step, 120))
+
+        # Optional cap for extremely long videos when maxFrames is not provided.
+        if max_frames is None and normalized_max_frames is None and self.video_target_processed_frames > 0:
+            normalized_max_frames = self.video_target_processed_frames
+
+        return normalized_frame_step, normalized_max_frames
 
     def _match_track(
         self, candidate: Candidate, frame_index: int, tracks: List[TrackState]

@@ -99,6 +99,7 @@
 .video-preview-wrapper {
   position: relative;
   display: inline-block;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -115,6 +116,13 @@
   border: 2px solid #ef4444;
   pointer-events: none;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+  transition: left 120ms linear, top 120ms linear, width 120ms linear, height 120ms linear;
+}
+
+.video-bbox-overlay.focused {
+  border-width: 3px;
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
 }
 
 .video-bbox-label {
@@ -131,6 +139,30 @@
 
 .video-selected-row {
   background-color: #dbeafe !important;
+}
+
+.video-simple-table tbody tr {
+  cursor: pointer;
+}
+
+.video-moment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.video-moment-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 0.82rem;
+  padding: 2px 9px;
+  cursor: pointer;
+}
+
+.video-moment-btn:hover {
+  background: #e2e8f0;
 }
 
 @media (max-width: 900px) {

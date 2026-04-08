@@ -4,17 +4,16 @@ import { API_BASE_URL } from './config';
 
 function VideoAlprPage() {
   const [selectedFile, setSelectedFile] = useState(null);
-  const [frameStep, setFrameStep] = useState(3);
-  const [maxFrames, setMaxFrames] = useState('');
   const [uploading, setUploading] = useState(false);
 
   const [jobs, setJobs] = useState([]);
   const [currentJob, setCurrentJob] = useState(null);
   const [results, setResults] = useState([]);
-  const [selectedDetection, setSelectedDetection] = useState(null);
+  const [selectedPlate, setSelectedPlate] = useState(null);
 
   const [videoUrl, setVideoUrl] = useState(null);
   const [videoMeta, setVideoMeta] = useState(null);
+  const [currentVideoMs, setCurrentVideoMs] = useState(0);
   const videoRef = useRef(null);
 
   const [error, setError] = useState('');
@@ -52,6 +51,32 @@ function VideoAlprPage() {
     return `Eroare (status ${response.status})`;
   };
 
+  const getDetectionTimestampMs = (detection) => {
+    if (Number.isFinite(detection?.timestampMs)) {
+      return Number(detection.timestampMs);
+    }
+    return 0;
+  };
+
+  const PLATE_MOMENT_MIN_GAP_MS = 1500;
+
+  const formatTimestampForUi = (timestampMs) => {
+    if (!Number.isFinite(timestampMs) || timestampMs < 0) {
+      return '-';
+    }
+
+    const totalSeconds = Math.floor(timestampMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const twoDigits = (value) => String(value).padStart(2, '0');
+    if (hours > 0) {
+      return `${twoDigits(hours)}:${twoDigits(minutes)}:${twoDigits(seconds)}`;
+    }
+    return `${twoDigits(minutes)}:${twoDigits(seconds)}`;
+  };
+
   const fetchJobs = useCallback(async () => {
     const response = await fetch(`${API_BASE_URL}/api/video-jobs`, {
       headers: authHeader,
@@ -77,17 +102,44 @@ function VideoAlprPage() {
   }, [authHeader]);
 
   const loadResults = useCallback(async (jobId) => {
-    const response = await fetch(`${API_BASE_URL}/api/video-jobs/${jobId}/results?page=0&size=500`, {
-      headers: authHeader,
-    });
-    if (!response.ok) {
-      throw new Error(await readError(response));
+    const allItems = [];
+    let page = 0;
+    let totalPages = 1;
+    const size = 500;
+
+    while (page < totalPages && page < 100) {
+      const response = await fetch(`${API_BASE_URL}/api/video-jobs/${jobId}/results?page=${page}&size=${size}`, {
+        headers: authHeader,
+      });
+      if (!response.ok) {
+        throw new Error(await readError(response));
+      }
+      const data = await response.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      allItems.push(...items);
+
+      const serverTotalPages = Number.isFinite(data?.totalPages) ? Number(data.totalPages) : 1;
+      totalPages = Math.max(1, serverTotalPages);
+      page += 1;
     }
-    const data = await response.json();
-    const items = Array.isArray(data?.items) ? data.items : [];
-    setResults(items);
-    setSelectedDetection(items[0] || null);
-    return items;
+
+    allItems.sort((first, second) => {
+      const timeCompare = getDetectionTimestampMs(first) - getDetectionTimestampMs(second);
+      if (timeCompare !== 0) {
+        return timeCompare;
+      }
+
+      const frameCompare = (first?.frameIndex ?? 0) - (second?.frameIndex ?? 0);
+      if (frameCompare !== 0) {
+        return frameCompare;
+      }
+
+      return (first?.id ?? 0) - (second?.id ?? 0);
+    });
+
+    setResults(allItems);
+    setSelectedPlate(allItems[0]?.plateText || null);
+    return allItems;
   }, [authHeader]);
 
   const loadVideoBlob = useCallback(async (jobId) => {
@@ -103,6 +155,7 @@ function VideoAlprPage() {
     const objectUrl = URL.createObjectURL(blob);
     setVideoUrl(objectUrl);
     setVideoMeta(null);
+    setCurrentVideoMs(0);
   }, [authHeader, revokeVideoUrl]);
 
   useEffect(() => {
@@ -155,17 +208,12 @@ function VideoAlprPage() {
     setError('');
     setInfo('');
     setResults([]);
-    setSelectedDetection(null);
+    setSelectedPlate(null);
+    setCurrentVideoMs(0);
 
     try {
       const form = new FormData();
       form.append('video', selectedFile, selectedFile.name);
-      if (frameStep && Number(frameStep) > 0) {
-        form.append('frameStep', String(frameStep));
-      }
-      if (maxFrames && Number(maxFrames) > 0) {
-        form.append('maxFrames', String(maxFrames));
-      }
 
       const response = await fetch(`${API_BASE_URL}/api/video-jobs`, {
         method: 'POST',
@@ -193,7 +241,8 @@ function VideoAlprPage() {
     setError('');
     setInfo('');
     setResults([]);
-    setSelectedDetection(null);
+    setSelectedPlate(null);
+    setCurrentVideoMs(0);
 
     try {
       const job = await loadJob(jobId);
@@ -218,6 +267,7 @@ function VideoAlprPage() {
       naturalWidth: el.videoWidth,
       naturalHeight: el.videoHeight,
     });
+    setCurrentVideoMs(el.currentTime * 1000);
   };
 
   useEffect(() => {
@@ -237,36 +287,234 @@ function VideoAlprPage() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  useEffect(() => {
-    if (!selectedDetection || !videoRef.current) {
+  const handleVideoTimeUpdate = () => {
+    if (!videoRef.current) {
       return;
     }
-    if (typeof selectedDetection.timestampMs === 'number') {
-      videoRef.current.currentTime = selectedDetection.timestampMs / 1000;
-      videoRef.current.pause();
-    }
-  }, [selectedDetection]);
-
-  const selectDetection = (detection) => {
-    setSelectedDetection(detection);
+    setCurrentVideoMs(videoRef.current.currentTime * 1000);
   };
 
-  const overlayStyle = useMemo(() => {
-    if (!selectedDetection?.bbox || !videoMeta) {
-      return null;
+  useEffect(() => {
+    if (!videoRef.current) {
+      return undefined;
     }
-    if (!videoMeta.naturalWidth || !videoMeta.naturalHeight) {
-      return null;
+
+    const videoElement = videoRef.current;
+    let animationFrameId = null;
+
+    const updateFromVideo = () => {
+      setCurrentVideoMs(videoElement.currentTime * 1000);
+      if (!videoElement.paused && !videoElement.ended) {
+        animationFrameId = window.requestAnimationFrame(updateFromVideo);
+      }
+    };
+
+    const startLoop = () => {
+      if (animationFrameId != null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+      animationFrameId = window.requestAnimationFrame(updateFromVideo);
+    };
+
+    const stopLoop = () => {
+      if (animationFrameId != null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+      animationFrameId = null;
+    };
+
+    videoElement.addEventListener('play', startLoop);
+    videoElement.addEventListener('pause', stopLoop);
+    videoElement.addEventListener('ended', stopLoop);
+    videoElement.addEventListener('seeked', updateFromVideo);
+
+    if (!videoElement.paused) {
+      startLoop();
     }
+
+    return () => {
+      videoElement.removeEventListener('play', startLoop);
+      videoElement.removeEventListener('pause', stopLoop);
+      videoElement.removeEventListener('ended', stopLoop);
+      videoElement.removeEventListener('seeked', updateFromVideo);
+      stopLoop();
+    };
+  }, [videoUrl]);
+
+  const trackTimelines = useMemo(() => {
+    const grouped = new Map();
+
+    for (const detection of results) {
+      if (!detection?.bbox) {
+        continue;
+      }
+
+      const key = detection.trackId != null ? `track-${detection.trackId}` : `det-${detection.id}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key).push({
+        ...detection,
+        _timestampMs: getDetectionTimestampMs(detection),
+      });
+    }
+
+    for (const timeline of grouped.values()) {
+      timeline.sort((first, second) => first._timestampMs - second._timestampMs);
+    }
+
+    return grouped;
+  }, [results]);
+
+  const plateSummaries = useMemo(() => {
+    const groupedByPlate = new Map();
+
+    for (const detection of results) {
+      if (!detection?.plateText) {
+        continue;
+      }
+
+      const timestampMs = getDetectionTimestampMs(detection);
+      if (!groupedByPlate.has(detection.plateText)) {
+        groupedByPlate.set(detection.plateText, []);
+      }
+
+      groupedByPlate.get(detection.plateText).push({
+        ...detection,
+        _timestampMs: timestampMs,
+      });
+    }
+
+    const summaries = [];
+    for (const [plateText, detections] of groupedByPlate.entries()) {
+      detections.sort((first, second) => {
+        const timeCompare = first._timestampMs - second._timestampMs;
+        if (timeCompare !== 0) {
+          return timeCompare;
+        }
+
+        const frameCompare = (first?.frameIndex ?? 0) - (second?.frameIndex ?? 0);
+        if (frameCompare !== 0) {
+          return frameCompare;
+        }
+
+        return (first?.id ?? 0) - (second?.id ?? 0);
+      });
+
+      const moments = [];
+      for (const detection of detections) {
+        const lastKept = moments[moments.length - 1];
+        if (
+          !lastKept ||
+          detection._timestampMs - lastKept._timestampMs >= PLATE_MOMENT_MIN_GAP_MS
+        ) {
+          moments.push(detection);
+        }
+      }
+
+      if (moments.length > 0) {
+        summaries.push({
+          plateText,
+          firstTimestampMs: moments[0]._timestampMs,
+          firstDetection: moments[0],
+          moments,
+        });
+      }
+    }
+
+    summaries.sort((first, second) => first.firstTimestampMs - second.firstTimestampMs);
+    return summaries;
+  }, [results]);
+
+  const activeOverlays = useMemo(() => {
+    if (!videoMeta || !videoMeta.naturalWidth || !videoMeta.naturalHeight) {
+      return [];
+    }
+
     const scaleX = videoMeta.renderedWidth / videoMeta.naturalWidth;
     const scaleY = videoMeta.renderedHeight / videoMeta.naturalHeight;
-    return {
-      left: `${selectedDetection.bbox.x * scaleX}px`,
-      top: `${selectedDetection.bbox.y * scaleY}px`,
-      width: `${selectedDetection.bbox.w * scaleX}px`,
-      height: `${selectedDetection.bbox.h * scaleY}px`,
-    };
-  }, [selectedDetection, videoMeta]);
+    const keepTrackVisibleMs = 1500;
+
+    const overlays = [];
+
+    for (const [key, timeline] of trackTimelines.entries()) {
+      if (!Array.isArray(timeline) || timeline.length === 0) {
+        continue;
+      }
+
+      let nextIndex = timeline.length;
+      let left = 0;
+      let right = timeline.length - 1;
+      while (left <= right) {
+        const middle = Math.floor((left + right) / 2);
+        if (timeline[middle]._timestampMs >= currentVideoMs) {
+          nextIndex = middle;
+          right = middle - 1;
+        } else {
+          left = middle + 1;
+        }
+      }
+
+      const previous = nextIndex > 0 ? timeline[nextIndex - 1] : null;
+      const next = nextIndex < timeline.length ? timeline[nextIndex] : null;
+
+      let sourceDetection = null;
+      let interpolatedBbox = null;
+
+      if (
+        previous &&
+        next &&
+        next._timestampMs > previous._timestampMs &&
+        currentVideoMs >= previous._timestampMs &&
+        currentVideoMs <= next._timestampMs
+      ) {
+        const span = next._timestampMs - previous._timestampMs;
+        const ratio = Math.max(0, Math.min(1, (currentVideoMs - previous._timestampMs) / span));
+        interpolatedBbox = {
+          x: Math.round(previous.bbox.x + (next.bbox.x - previous.bbox.x) * ratio),
+          y: Math.round(previous.bbox.y + (next.bbox.y - previous.bbox.y) * ratio),
+          w: Math.round(previous.bbox.w + (next.bbox.w - previous.bbox.w) * ratio),
+          h: Math.round(previous.bbox.h + (next.bbox.h - previous.bbox.h) * ratio),
+        };
+        sourceDetection = previous;
+      } else if (previous && currentVideoMs - previous._timestampMs <= keepTrackVisibleMs) {
+        interpolatedBbox = previous.bbox;
+        sourceDetection = previous;
+      }
+
+      if (!sourceDetection || !interpolatedBbox) {
+        continue;
+      }
+
+      overlays.push({
+        key,
+        plateText: sourceDetection.plateText,
+        trackId: sourceDetection.trackId,
+        style: {
+          left: `${interpolatedBbox.x * scaleX}px`,
+          top: `${interpolatedBbox.y * scaleY}px`,
+          width: `${interpolatedBbox.w * scaleX}px`,
+          height: `${interpolatedBbox.h * scaleY}px`,
+        },
+      });
+    }
+
+    return overlays;
+  }, [trackTimelines, currentVideoMs, videoMeta]);
+
+  const jumpToDetection = (detection) => {
+    if (!detection) {
+      return;
+    }
+
+    setSelectedPlate(detection.plateText || null);
+    const timestampMs = getDetectionTimestampMs(detection);
+    if (videoRef.current && Number.isFinite(timestampMs)) {
+      videoRef.current.currentTime = timestampMs / 1000;
+      videoRef.current.pause();
+      setCurrentVideoMs(timestampMs);
+    }
+  };
 
   return (
     <div className="video-page">
@@ -286,30 +534,7 @@ function VideoAlprPage() {
           </label>
           <span className="video-filename">{selectedFile ? selectedFile.name : 'Niciun fisier selectat'}</span>
         </div>
-
-        <div className="video-options">
-          <label>
-            Frame step
-            <input
-              type="number"
-              min="1"
-              max="120"
-              value={frameStep}
-              onChange={(e) => setFrameStep(e.target.value)}
-            />
-          </label>
-          <label>
-            Max frames (optional)
-            <input
-              type="number"
-              min="1"
-              max="5000"
-              value={maxFrames}
-              onChange={(e) => setMaxFrames(e.target.value)}
-              placeholder="nelimitat"
-            />
-          </label>
-        </div>
+        <p className="video-muted">Setarile de frame sunt optimizate automat.</p>
 
         <button className="primary-btn" onClick={handleUpload} disabled={uploading}>
           {uploading ? 'Se incarca...' : 'Porneste job video'}
@@ -362,24 +587,28 @@ function VideoAlprPage() {
                   src={videoUrl}
                   onLoadedMetadata={handleVideoLoaded}
                   onSeeked={handleVideoLoaded}
+                  onTimeUpdate={handleVideoTimeUpdate}
                 />
-                {overlayStyle && (
-                  <div className="video-bbox-overlay" style={overlayStyle}>
+                {activeOverlays.map((overlay) => (
+                  <div
+                    key={overlay.key}
+                    className={`video-bbox-overlay ${selectedPlate === overlay.plateText ? 'focused' : ''}`}
+                    style={overlay.style}
+                  >
                     <span className="video-bbox-label">
-                      {selectedDetection?.plateText || 'PLATE'}
+                      {overlay.plateText || 'PLATE'}
                     </span>
                   </div>
-                )}
+                ))}
               </>
             ) : (
               <p className="video-muted">Selecteaza un job pentru a incarca preview-ul video.</p>
             )}
           </div>
 
-          {selectedDetection && (
+          {videoUrl && (
             <p className="video-muted">
-              Frame {selectedDetection.frameIndex} | track {selectedDetection.trackId ?? '-'} |&nbsp;
-              {selectedDetection.confidence != null ? `${(selectedDetection.confidence * 100).toFixed(1)}%` : 'fara scor'}
+              Timp curent: {formatTimestampForUi(currentVideoMs)} | Box-uri active: {activeOverlays.length}
             </p>
           )}
         </div>
@@ -387,31 +616,44 @@ function VideoAlprPage() {
 
       <section className="video-card">
         <h3>Rezultate detectii</h3>
-        {results.length === 0 && <p className="video-muted">Job-ul nu are detectii sau nu este finalizat.</p>}
-        {results.length > 0 && (
+        {plateSummaries.length === 0 && <p className="video-muted">Job-ul nu are detectii sau nu este finalizat.</p>}
+        {plateSummaries.length > 0 && (
           <div className="table-container">
-            <table className="table">
+            <p className="video-muted">
+              Placute unice: {plateSummaries.length} | Detectii brute: {results.length}
+            </p>
+            <table className="table video-simple-table">
               <thead>
                 <tr>
-                  <th>Frame</th>
-                  <th>Timp (ms)</th>
-                  <th>Track</th>
                   <th>Placuta</th>
-                  <th>Confidence</th>
+                  <th>Momente detectie</th>
                 </tr>
               </thead>
               <tbody>
-                {results.map((item) => (
+                {plateSummaries.map((item) => (
                   <tr
-                    key={item.id}
-                    className={selectedDetection?.id === item.id ? 'video-selected-row' : ''}
-                    onClick={() => selectDetection(item)}
+                    key={item.plateText}
+                    className={selectedPlate === item.plateText ? 'video-selected-row' : ''}
+                    onClick={() => jumpToDetection(item.firstDetection)}
                   >
-                    <td>{item.frameIndex}</td>
-                    <td>{item.timestampMs ?? '-'}</td>
-                    <td>{item.trackId ?? '-'}</td>
                     <td>{item.plateText}</td>
-                    <td>{item.confidence != null ? `${(item.confidence * 100).toFixed(1)}%` : '-'}</td>
+                    <td>
+                      <div className="video-moment-list">
+                        {item.moments.map((moment) => (
+                          <button
+                            key={moment.id}
+                            type="button"
+                            className="video-moment-btn"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              jumpToDetection(moment);
+                            }}
+                          >
+                            {formatTimestampForUi(moment._timestampMs)}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

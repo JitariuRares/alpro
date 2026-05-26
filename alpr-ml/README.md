@@ -19,3 +19,8 @@ Variabile utile:
 - `YOLO_CONFIDENCE_THRESHOLD` (default: `0.25`)
 - `YOLO_IMAGE_SIZE` (default: `640`)
 - `PADDLE_OCR_LANG` (default: `en`)
+- `VIDEO_TARGET_PROCESSED_FRAMES` (default: `700`)
+- `VIDEO_TRACK_OCR_MIN_FRAME_GAP` (default: `6`)
+- `VIDEO_TRACK_FORCE_OCR_MAX_FRAME_GAP` (default: `24`)
+- `VIDEO_REUSE_BBOX_IOU_THRESHOLD` (default: `0.85`)
+- `VIDEO_TEXT_STABILITY_MIN_HITS` (default: `2`)

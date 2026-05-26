@@ -107,6 +107,9 @@ class TrackState:
     plate_text: str
     bbox: dict
     last_frame_index: int
+    last_ocr_frame_index: int
+    last_ocr_bbox: Optional[dict]
+    last_ocr_confidence: float
 
 
 class AlprPipeline:
@@ -127,6 +130,15 @@ class AlprPipeline:
         self.video_track_max_gap_frames = int(os.getenv("VIDEO_TRACK_MAX_GAP_FRAMES", "10"))
         self.video_min_confidence = float(os.getenv("VIDEO_MIN_CONFIDENCE", "0.70"))
         self.video_emit_min_frame_gap = int(os.getenv("VIDEO_EMIT_MIN_FRAME_GAP", "12"))
+        self.video_track_ocr_min_frame_gap = max(1, int(os.getenv("VIDEO_TRACK_OCR_MIN_FRAME_GAP", "6")))
+        self.video_track_force_ocr_max_frame_gap = max(
+            self.video_track_ocr_min_frame_gap,
+            int(os.getenv("VIDEO_TRACK_FORCE_OCR_MAX_FRAME_GAP", "24")),
+        )
+        self.video_reuse_bbox_iou_threshold = max(
+            0.0, min(1.0, float(os.getenv("VIDEO_REUSE_BBOX_IOU_THRESHOLD", "0.85")))
+        )
+        self.video_text_stability_min_hits = max(1, int(os.getenv("VIDEO_TEXT_STABILITY_MIN_HITS", "2")))
 
         self._load_detector()
         self._load_ocr()
@@ -229,6 +241,7 @@ class AlprPipeline:
             detections = []
             tracks: List[TrackState] = []
             track_text_scores: Dict[int, Dict[str, float]] = {}
+            track_text_hits: Dict[int, Dict[str, int]] = {}
             track_last_emitted: Dict[int, Tuple[int, str]] = {}
             next_track_id = 1
             frame_index = -1
@@ -247,34 +260,65 @@ class AlprPipeline:
                 if normalized_max_frames is not None and sampled_frames > normalized_max_frames:
                     break
 
-                frame_candidates = self._detect_and_read(frame)
-                if not frame_candidates:
+                frame_detections = self._yolo_detect(frame)
+                if not frame_detections:
+                    self._prune_tracks(tracks, frame_index)
+                    self._cleanup_track_caches(tracks, track_text_scores, track_text_hits, track_last_emitted)
                     continue
 
                 timestamp_ms = int(cap.get(cv2.CAP_PROP_POS_MSEC) or 0)
-                for candidate in frame_candidates[: self.video_max_detections_per_frame]:
+                for detection in frame_detections[: self.video_max_detections_per_frame]:
+                    candidate = Candidate(
+                        text="",
+                        confidence=float(detection["confidence"]),
+                        bbox=detection["bbox"],
+                    )
                     matched_track = self._match_track(candidate, frame_index, tracks)
                     if matched_track is None:
                         matched_track = TrackState(
                             track_id=next_track_id,
-                            plate_text=candidate.text,
+                            plate_text="",
                             bbox=candidate.bbox,
                             last_frame_index=frame_index,
+                            last_ocr_frame_index=-10_000,
+                            last_ocr_bbox=None,
+                            last_ocr_confidence=0.0,
                         )
                         tracks.append(matched_track)
                         next_track_id += 1
                     else:
-                        matched_track.plate_text = candidate.text
                         matched_track.bbox = candidate.bbox
                         matched_track.last_frame_index = frame_index
 
-                    if candidate.confidence < self.video_min_confidence:
+                    track_id = matched_track.track_id
+                    if self._should_run_track_ocr(matched_track, frame_index):
+                        ocr_text, ocr_combined_confidence = self._ocr_candidate_for_bbox(
+                            frame,
+                            matched_track.bbox,
+                            candidate.confidence,
+                        )
+                        matched_track.last_ocr_frame_index = frame_index
+                        matched_track.last_ocr_bbox = dict(matched_track.bbox)
+
+                        if ocr_text:
+                            matched_track.last_ocr_confidence = ocr_combined_confidence
+                            text_scores = track_text_scores.setdefault(track_id, {})
+                            text_hits = track_text_hits.setdefault(track_id, {})
+
+                            text_scores[ocr_text] = text_scores.get(ocr_text, 0.0) + ocr_combined_confidence
+                            text_hits[ocr_text] = text_hits.get(ocr_text, 0) + 1
+                            matched_track.plate_text = max(text_scores.items(), key=lambda entry: entry[1])[0]
+
+                    stable_plate = matched_track.plate_text
+                    if not stable_plate:
                         continue
 
-                    track_id = matched_track.track_id
-                    text_scores = track_text_scores.setdefault(track_id, {})
-                    text_scores[candidate.text] = text_scores.get(candidate.text, 0.0) + candidate.confidence
-                    stable_plate = max(text_scores.items(), key=lambda entry: entry[1])[0]
+                    if matched_track.last_ocr_confidence < self.video_min_confidence:
+                        continue
+
+                    stable_hits = track_text_hits.get(track_id, {}).get(stable_plate, 0)
+                    if stable_hits < self.video_text_stability_min_hits and track_id not in track_last_emitted:
+                        continue
 
                     last_emitted = track_last_emitted.get(track_id)
                     if (
@@ -290,13 +334,14 @@ class AlprPipeline:
                             "timestampMs": timestamp_ms,
                             "trackId": track_id,
                             "plateText": stable_plate,
-                            "confidence": round(candidate.confidence, 4),
-                            "bbox": candidate.bbox,
+                            "confidence": round(matched_track.last_ocr_confidence, 4),
+                            "bbox": dict(matched_track.bbox),
                         }
                     )
                     track_last_emitted[track_id] = (frame_index, stable_plate)
 
                 self._prune_tracks(tracks, frame_index)
+                self._cleanup_track_caches(tracks, track_text_scores, track_text_hits, track_last_emitted)
 
             cap.release()
 
@@ -504,6 +549,38 @@ class AlprPipeline:
 
         return normalized_frame_step, normalized_max_frames
 
+    def _ocr_candidate_for_bbox(
+        self, image: np.ndarray, bbox: dict, detection_confidence: float
+    ) -> tuple[Optional[str], float]:
+        crop = self._crop_bbox(image, bbox)
+        if crop is None:
+            return None, 0.0
+
+        ocr_text, ocr_confidence = self._read_with_paddle(crop)
+        normalized = self._normalize_plate(ocr_text)
+        if not normalized:
+            return None, 0.0
+
+        combined_conf = (ocr_confidence * 0.7) + (detection_confidence * 0.3)
+        return normalized, float(combined_conf)
+
+    def _should_run_track_ocr(self, track: TrackState, frame_index: int) -> bool:
+        frame_gap = frame_index - track.last_ocr_frame_index
+
+        if track.last_ocr_frame_index < 0:
+            return True
+
+        if frame_gap >= self.video_track_force_ocr_max_frame_gap:
+            return True
+
+        if frame_gap < self.video_track_ocr_min_frame_gap:
+            return False
+
+        if track.last_ocr_bbox is None:
+            return True
+
+        return self._bbox_iou(track.bbox, track.last_ocr_bbox) < self.video_reuse_bbox_iou_threshold
+
     def _match_track(
         self, candidate: Candidate, frame_index: int, tracks: List[TrackState]
     ) -> Optional[TrackState]:
@@ -531,6 +608,13 @@ class AlprPipeline:
             for track in tracks
             if (frame_index - track.last_frame_index) <= self.video_track_max_gap_frames
         ]
+
+    def _cleanup_track_caches(self, tracks: List[TrackState], *caches: Dict[int, object]) -> None:
+        active_track_ids = {track.track_id for track in tracks}
+        for cache in caches:
+            stale_track_ids = [track_id for track_id in list(cache.keys()) if track_id not in active_track_ids]
+            for track_id in stale_track_ids:
+                cache.pop(track_id, None)
 
     def _bbox_iou(self, first: dict, second: dict) -> float:
         if not first or not second:

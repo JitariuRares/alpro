@@ -24,7 +24,7 @@ public class VideoJobController {
     @Autowired
     private VideoJobService videoJobService;
 
-    @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
+    @PreAuthorize("hasRole('POLICE')")
     @PostMapping
     public ResponseEntity<VideoJobDto> uploadVideo(
             @RequestParam("video") MultipartFile video,
@@ -36,13 +36,13 @@ public class VideoJobController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(created);
     }
 
-    @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
+    @PreAuthorize("hasRole('POLICE')")
     @GetMapping
     public ResponseEntity<List<VideoJobDto>> getCurrentUserJobs(Authentication authentication) {
         return ResponseEntity.ok(videoJobService.getCurrentUserJobs(authentication));
     }
 
-    @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
+    @PreAuthorize("hasRole('POLICE')")
     @GetMapping("/{jobId}")
     public ResponseEntity<VideoJobDto> getCurrentUserJob(
             @PathVariable Long jobId,
@@ -51,7 +51,7 @@ public class VideoJobController {
         return ResponseEntity.ok(videoJobService.getCurrentUserJobById(jobId, authentication));
     }
 
-    @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
+    @PreAuthorize("hasRole('POLICE')")
     @GetMapping("/{jobId}/results")
     public ResponseEntity<VideoDetectionPageDto> getCurrentUserJobResults(
             @PathVariable Long jobId,
@@ -63,7 +63,7 @@ public class VideoJobController {
         return ResponseEntity.ok(results);
     }
 
-    @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
+    @PreAuthorize("hasRole('POLICE')")
     @GetMapping("/{jobId}/video")
     public ResponseEntity<Resource> getCurrentUserVideo(
             @PathVariable Long jobId,

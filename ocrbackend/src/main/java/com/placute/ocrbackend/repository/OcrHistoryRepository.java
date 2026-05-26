@@ -23,5 +23,14 @@ public interface OcrHistoryRepository extends JpaRepository<OcrHistory, Long> {
             """)
     List<OcrHistory> findByPlateNumberContainingWithLicensePlateOrderByProcessedAtDesc(@Param("fragment") String fragment);
 
+    @Query("""
+            select h
+            from OcrHistory h
+            join fetch h.licensePlate lp
+            where lp.plateNumber = :plateNumber
+            order by h.processedAt desc
+            """)
+    List<OcrHistory> findByExactPlateNumberWithLicensePlateOrderByProcessedAtDesc(@Param("plateNumber") String plateNumber);
+
     Optional<OcrHistory> findTopByLicensePlate_IdOrderByProcessedAtDesc(Long licensePlateId);
 }

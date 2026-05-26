@@ -14,6 +14,16 @@ public class ParkingHistory {
     private LocalDateTime entryTime;
     private LocalDateTime exitTime;
 
+    @Column(name = "entry_image_path")
+    private String entryImagePath;
+
+    @Column(name = "exit_image_path")
+    private String exitImagePath;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private ParkingSessionStatus status;
+
     @ManyToOne
     @JoinColumn(name = "plate_id")
     @JsonBackReference
@@ -38,6 +48,30 @@ public class ParkingHistory {
 
     public void setExitTime(LocalDateTime exitTime) {
         this.exitTime = exitTime;
+    }
+
+    public String getEntryImagePath() {
+        return entryImagePath;
+    }
+
+    public void setEntryImagePath(String entryImagePath) {
+        this.entryImagePath = entryImagePath;
+    }
+
+    public String getExitImagePath() {
+        return exitImagePath;
+    }
+
+    public void setExitImagePath(String exitImagePath) {
+        this.exitImagePath = exitImagePath;
+    }
+
+    public ParkingSessionStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ParkingSessionStatus status) {
+        this.status = status;
     }
 
     public LicensePlate getLicensePlate() {

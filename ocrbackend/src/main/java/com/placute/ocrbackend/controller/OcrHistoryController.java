@@ -5,6 +5,7 @@ import com.placute.ocrbackend.model.OcrHistory;
 import com.placute.ocrbackend.repository.OcrHistoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class OcrHistoryController {
     @Autowired
     private OcrHistoryRepository historyRepository;
 
+    @PreAuthorize("hasRole('POLICE')")
     @GetMapping("/history")
     public ResponseEntity<List<OcrHistoryDto>> getAllHistory() {
         List<OcrHistory> all = historyRepository.findAllWithLicensePlateOrderByProcessedAtDesc();
@@ -48,6 +50,7 @@ public class OcrHistoryController {
         return ResponseEntity.ok(dtoList);
     }
 
+    @PreAuthorize("hasRole('POLICE')")
     @GetMapping("/history/search")
     public ResponseEntity<List<OcrHistoryDto>> searchHistory(@RequestParam("query") String query) {
         List<OcrHistory> partial = historyRepository

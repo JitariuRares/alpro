@@ -52,7 +52,7 @@ public class LicensePlateController {
         return licensePlateRepository.findByPlateNumber(plateNumber.trim().toUpperCase(Locale.ROOT));
     }
 
-    @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
+    @PreAuthorize("hasRole('POLICE')")
     @PostMapping
     public LicensePlate savePlate(@RequestBody LicensePlate plate) {
         if (plate == null || plate.getPlateNumber() == null || plate.getPlateNumber().isBlank()) {
@@ -70,7 +70,7 @@ public class LicensePlateController {
         return licensePlateRepository.save(plate);
     }
 
-    @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
+    @PreAuthorize("hasRole('POLICE')")
     @PutMapping("/{id}")
     public ResponseEntity<LicensePlate> updatePlateDetails(
             @PathVariable Long id,

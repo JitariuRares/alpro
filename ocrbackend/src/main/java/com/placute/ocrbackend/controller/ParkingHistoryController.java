@@ -1,77 +1,83 @@
 package com.placute.ocrbackend.controller;
 
-import com.placute.ocrbackend.model.LicensePlate;
-import com.placute.ocrbackend.model.ParkingHistory;
-import com.placute.ocrbackend.repository.LicensePlateRepository;
-import com.placute.ocrbackend.repository.ParkingHistoryRepository;
+import com.placute.ocrbackend.dto.ParkingSessionDto;
+import com.placute.ocrbackend.service.ParkingService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/parking")
 public class ParkingHistoryController {
 
     @Autowired
-    private ParkingHistoryRepository parkingHistoryRepository;
-
-    @Autowired
-    private LicensePlateRepository licensePlateRepository;
+    private ParkingService parkingService;
 
     @PreAuthorize("hasAnyRole('PARKING', 'POLICE')")
-    @PostMapping
-    public ResponseEntity<?> addParkingRecord(@RequestBody ParkingHistory record) {
-        if (record == null || record.getLicensePlate() == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Datele parcarii sunt invalide.");
+    @PostMapping(value = "/entry", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> registerEntry(
+            @RequestParam("plateNumber") String plateNumber,
+            @RequestParam(value = "entryTime", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime entryTime,
+            @RequestParam("image") MultipartFile image
+    ) {
+        try {
+            ParkingSessionDto created = parkingService.registerEntry(plateNumber, entryTime, image);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        } catch (IOException ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Nu s-a putut salva dovada foto.");
         }
-        if (record.getEntryTime() == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Data de intrare este obligatorie.");
-        }
-        if (record.getExitTime() != null && record.getExitTime().isBefore(record.getEntryTime())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Data de iesire nu poate fi inainte de intrare.");
-        }
-
-        String rawPlate = record.getLicensePlate().getPlateNumber();
-        String plateNumber = rawPlate == null ? "" : rawPlate.trim().toUpperCase(Locale.ROOT);
-        if (plateNumber.isBlank()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Numarul placutei este obligatoriu.");
-        }
-
-        List<LicensePlate> plates = licensePlateRepository.findByPlateNumber(plateNumber);
-        if (plates.isEmpty()) {
-            return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST)
-                    .body("Placuta de inmatriculare nu exista in baza de date.");
-        }
-
-        List<ParkingHistory> existing = parkingHistoryRepository.findByLicensePlate_PlateNumber(plateNumber);
-        boolean duplicate = existing.stream().anyMatch(e ->
-                e.getEntryTime().equals(record.getEntryTime()) &&
-                        ((e.getExitTime() == null && record.getExitTime() == null) ||
-                                (e.getExitTime() != null && e.getExitTime().equals(record.getExitTime())))
-        );
-
-        if (duplicate) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body("Aceasta inregistrare de parcare exista deja.");
-        }
-
-        record.setLicensePlate(plates.get(0));
-        ParkingHistory saved = parkingHistoryRepository.save(record);
-        return ResponseEntity.ok(saved);
     }
 
-
+    @PreAuthorize("hasAnyRole('PARKING', 'POLICE')")
+    @PostMapping(value = "/exit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> registerExit(
+            @RequestParam("plateNumber") String plateNumber,
+            @RequestParam(value = "exitTime", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime exitTime,
+            @RequestParam("image") MultipartFile image
+    ) {
+        try {
+            ParkingSessionDto updated = parkingService.registerExit(plateNumber, exitTime, image);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        } catch (IOException ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Nu s-a putut salva dovada foto.");
+        }
+    }
 
     @PreAuthorize("hasAnyRole('PARKING', 'POLICE')")
     @GetMapping("/{plateNumber}")
-    public List<ParkingHistory> getParkingByPlate(@PathVariable String plateNumber) {
-        return parkingHistoryRepository.findByLicensePlate_PlateNumber(plateNumber);
+    public ResponseEntity<List<ParkingSessionDto>> getParkingSessionsByPlate(@PathVariable String plateNumber) {
+        return ResponseEntity.ok(parkingService.getSessionsByPlate(plateNumber));
     }
 
+    @PreAuthorize("hasAnyRole('PARKING', 'POLICE')")
+    @GetMapping("/sessions/{sessionId}/evidence/{type}")
+    public ResponseEntity<Resource> getParkingEvidence(
+            @PathVariable Long sessionId,
+            @PathVariable String type
+    ) throws IOException {
+        ParkingService.ParkingEvidencePayload payload = parkingService.getEvidence(sessionId, type);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .contentType(MediaType.parseMediaType(payload.contentType()))
+                .contentLength(payload.contentLength())
+                .body(payload.resource());
+    }
 }

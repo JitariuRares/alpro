@@ -39,7 +39,7 @@ public class OcrController {
     @Value("${app.upload-dir:uploads}")
     private String uploadDir;
 
-    @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
+    @PreAuthorize("hasRole('POLICE')")
     @PostMapping("/ocr")
     public ResponseEntity<String> uploadImage(@RequestParam("image") MultipartFile file) throws IOException {
         File convFile = toStoredUploadFile(file);
@@ -47,7 +47,7 @@ public class OcrController {
         return ResponseEntity.ok(result);
     }
 
-    @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
+    @PreAuthorize("hasRole('POLICE')")
     @PostMapping("/ocr/full")
     public ResponseEntity<?> uploadImageFull(@RequestParam("image") MultipartFile file) throws IOException {
         File convFile = toStoredUploadFile(file);
@@ -84,7 +84,7 @@ public class OcrController {
         return ResponseEntity.ok(dto);
     }
 
-    @PreAuthorize("hasAnyRole('POLICE', 'PARKING')")
+    @PreAuthorize("hasRole('POLICE')")
     @GetMapping("/plates")
     public ResponseEntity<List<LicensePlate>> getAllPlates() {
         List<LicensePlate> plates = plateRepository.findAll();

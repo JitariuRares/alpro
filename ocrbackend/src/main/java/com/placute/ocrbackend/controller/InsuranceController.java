@@ -4,10 +4,12 @@ import com.placute.ocrbackend.model.Insurance;
 import com.placute.ocrbackend.model.LicensePlate;
 import com.placute.ocrbackend.repository.InsuranceRepository;
 import com.placute.ocrbackend.repository.LicensePlateRepository;
+import com.placute.ocrbackend.service.AuditLogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +26,9 @@ public class InsuranceController {
     @Autowired
     private LicensePlateRepository licensePlateRepository;
 
+    @Autowired
+    private AuditLogService auditLogService;
+
     @PreAuthorize("hasAnyRole('INSURANCE', 'POLICE')")
     @GetMapping("/{plateNumber}")
     public List<Insurance> getInsuranceByPlate(@PathVariable String plateNumber) {
@@ -33,7 +38,7 @@ public class InsuranceController {
 
     @PreAuthorize("hasRole('INSURANCE')")
     @PostMapping
-    public ResponseEntity<?> saveInsurance(@RequestBody Insurance insurance) {
+    public ResponseEntity<?> saveInsurance(@RequestBody Insurance insurance, Authentication authentication) {
         if (insurance == null || insurance.getLicensePlate() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Datele politei sunt invalide.");
         }
@@ -86,8 +91,54 @@ public class InsuranceController {
         insurance.setCompany(insurance.getCompany().trim());
         insurance.setLicensePlate(resolvedPlate);
         Insurance saved = insuranceRepository.save(insurance);
+        auditLogService.log(
+                authentication,
+                "INSURANCE_CREATE",
+                plateNumber,
+                "Created insurance id=" + saved.getId()
+        );
         return ResponseEntity.ok(saved);
     }
 
+    @PreAuthorize("hasRole('INSURANCE')")
+    @PutMapping("/{insuranceId}")
+    public ResponseEntity<?> updateInsurance(
+            @PathVariable Long insuranceId,
+            @RequestBody Insurance insurance,
+            Authentication authentication
+    ) {
+        if (insurance == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Datele politei sunt invalide.");
+        }
+        if (insurance.getCompany() == null || insurance.getCompany().isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Compania este obligatorie.");
+        }
+        if (insurance.getValidFrom() == null || insurance.getValidTo() == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Intervalul de valabilitate este obligatoriu.");
+        }
+        if (insurance.getValidTo().isBefore(insurance.getValidFrom())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Data de expirare nu poate fi inainte de data de start.");
+        }
+
+        Insurance existing = insuranceRepository.findById(insuranceId)
+                .orElse(null);
+        if (existing == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Polita nu exista.");
+        }
+
+        existing.setCompany(insurance.getCompany().trim());
+        existing.setValidFrom(insurance.getValidFrom());
+        existing.setValidTo(insurance.getValidTo());
+
+        Insurance saved = insuranceRepository.save(existing);
+        String plateNumber = saved.getLicensePlate() != null ? saved.getLicensePlate().getPlateNumber() : null;
+        auditLogService.log(
+                authentication,
+                "INSURANCE_UPDATE",
+                plateNumber,
+                "Updated insurance id=" + saved.getId()
+        );
+        return ResponseEntity.ok(saved);
+    }
 
 }

@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import { FaCarSide, FaParking, FaShieldAlt } from 'react-icons/fa';
 import {
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid
 } from 'recharts';
 import { API_BASE_URL } from './config';
 
@@ -19,8 +20,8 @@ function DashboardPage() {
       try {
         const res = await fetch(`${API_BASE_URL}/api/dashboard/stats`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
         });
 
         if (!res.ok) {
@@ -37,7 +38,7 @@ function DashboardPage() {
           totalPlates: data.totalPlates,
           totalInsurances: data.totalInsurances,
           totalParkings: data.totalParkings,
-          topCounties: countiesArray
+          topCounties: countiesArray,
         });
       } catch (err) {
         setError(err.message);
@@ -48,36 +49,61 @@ function DashboardPage() {
   }, []);
 
   return (
-    <div className="card">
-      <h2 className="text-xl font-semibold mb-4 text-gray-700">📊 Dashboard</h2>
+    <div className="dashboard-page">
+      <section className="module-hero dashboard-hero">
+        <div>
+          <p className="module-eyebrow">ALPRo Command Center</p>
+          <h1>Dashboard</h1>
+          <p className="module-subtitle">
+            Privire rapida peste vehicule, asigurari, sesiuni de parcare si distributia detectiilor recente.
+          </p>
+        </div>
+        <span className="status-badge success">Online</span>
+      </section>
 
       {error && <div className="alert alert-error">{error}</div>}
 
       {stats && (
         <>
-          <div className="mb-6">
-            <p className="text-lg font-medium">
-              Numar total de placute: <strong>{stats.totalPlates}</strong>
-            </p>
-          </div>
+          <section className="dashboard-stats-grid">
+            <div className="stat-card">
+              <div className="stat-icon blue"><FaCarSide aria-hidden="true" /></div>
+              <span>Vehicule</span>
+              <strong>{stats.totalPlates}</strong>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon green"><FaShieldAlt aria-hidden="true" /></div>
+              <span>Polite</span>
+              <strong>{stats.totalInsurances}</strong>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon orange"><FaParking aria-hidden="true" /></div>
+              <span>Sesiuni parcare</span>
+              <strong>{stats.totalParkings}</strong>
+            </div>
+          </section>
 
-          <div>
-            <h3 className="text-md font-semibold mb-2">
-              🗺️ Top judete (ultimele 7 zile):
-            </h3>
+          <section className="card dashboard-chart-card">
+            <div className="section-heading">
+              <div>
+                <span className="module-eyebrow">Ultimele 7 zile</span>
+                <h2>Top judete detectate</h2>
+              </div>
+              <span className="status-badge info">{stats.topCounties.length} active</span>
+            </div>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart
                 data={stats.topCounties}
                 margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="county" />
                 <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="count" />
+                <Bar dataKey="count" fill="#2563eb" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </section>
         </>
       )}
     </div>

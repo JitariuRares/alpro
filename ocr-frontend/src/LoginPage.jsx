@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { FaLock, FaUser, FaUserShield } from 'react-icons/fa';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './LoginPage.css';
 import { API_BASE_URL } from './config';
 import { parseJwt } from './jwt';
@@ -80,7 +81,7 @@ function LoginPage() {
       });
 
       if (response.ok) {
-        alert('Cont creat cu succes! Te poti loga acum.');
+        alert('Cont creat cu succes. Te poti loga acum.');
         setIsRegistering(false);
         setUsername('');
         setPassword('');
@@ -106,19 +107,26 @@ function LoginPage() {
   return (
     <div className="login-background">
       <div className="login-card">
+        <div className="login-brand">
+          <div className="brand-mark">A</div>
+          <div>
+            <h1>ALPRo</h1>
+            <span>Serviciu operational ALPR</span>
+          </div>
+        </div>
+
         <div className="login-header">
-          <div className="icon">🔐</div>
           <h2>{isRegistering ? 'Inregistrare cont nou' : 'Autentificare'}</h2>
           <p className="subtitle">
             {isRegistering
-              ? 'Completeaza pentru a-ti crea un cont nou'
-              : 'Introdu datele contului tau pentru a continua'}
+              ? 'Creeaza un cont pentru rolul tau operational.'
+              : 'Introdu datele contului pentru a continua.'}
           </p>
         </div>
 
         <form onSubmit={isRegistering ? handleRegister : handleLogin} className="login-form">
           <div className="input-group">
-            <span className="input-icon">👤</span>
+            <FaUser className="input-icon" aria-hidden="true" />
             <input
               type="text"
               placeholder="Username"
@@ -129,7 +137,7 @@ function LoginPage() {
           </div>
 
           <div className="input-group">
-            <span className="input-icon">🔒</span>
+            <FaLock className="input-icon" aria-hidden="true" />
             <input
               type="password"
               placeholder="Parola"
@@ -141,12 +149,11 @@ function LoginPage() {
 
           {isRegistering && (
             <div className="input-group">
-              <span className="input-icon">🎭</span>
+              <FaUserShield className="input-icon" aria-hidden="true" />
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 className="input"
-                style={{ paddingLeft: '2.5rem' }}
               >
                 <option value="POLICE">Politie</option>
                 <option value="INSURANCE">Asigurator</option>
@@ -156,7 +163,7 @@ function LoginPage() {
           )}
 
           <button type="submit" className="login-button">
-            {isRegistering ? 'Înregistrează-te' : 'Login'}
+            {isRegistering ? 'Inregistreaza-te' : 'Login'}
           </button>
         </form>
 
@@ -171,14 +178,7 @@ function LoginPage() {
           <button
             type="button"
             onClick={() => setIsRegistering(!isRegistering)}
-            style={{
-              marginLeft: '0.5rem',
-              textDecoration: 'underline',
-              background: 'none',
-              border: 'none',
-              color: '#fff',
-              cursor: 'pointer',
-            }}
+            className="login-link-button"
           >
             {isRegistering ? 'Autentifica-te' : 'Creeaza unul'}
           </button>

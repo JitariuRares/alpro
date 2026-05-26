@@ -5,9 +5,9 @@ export const ROLE_PARKING = 'PARKING';
 export const ROLE_INSURANCE = 'INSURANCE';
 
 const ROLE_DEFAULT_ROUTE = {
-  [ROLE_POLICE]: '/upload',
-  [ROLE_PARKING]: '/add-parking',
-  [ROLE_INSURANCE]: '/add-insurance',
+  [ROLE_POLICE]: '/dashboard',
+  [ROLE_PARKING]: '/dashboard',
+  [ROLE_INSURANCE]: '/dashboard',
 };
 
 export function normalizeRole(role) {

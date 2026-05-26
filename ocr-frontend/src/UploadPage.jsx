@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './UploadPage.css';
 import { API_BASE_URL } from './config';
 
 function UploadPage() {
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewBox, setPreviewBox] = useState(null);
@@ -183,6 +185,13 @@ function UploadPage() {
     }
   };
 
+  const handleLookupVehicle = () => {
+    if (!carData?.plateNumber) {
+      return;
+    }
+    navigate(`/search?plate=${encodeURIComponent(carData.plateNumber)}`);
+  };
+
   const overlayStyle = getOverlayStyle();
   const confidencePercent = carData?.confidence != null
     ? `${(carData.confidence * 100).toFixed(1)}%`
@@ -231,6 +240,9 @@ function UploadPage() {
             {confidencePercent && (
               <p><strong>Incredere detectie:</strong> {confidencePercent}</p>
             )}
+            <button onClick={handleLookupVehicle} className="primary-btn mt-2">
+              Cauta date vehicul
+            </button>
 
             <label className="label">Marca:</label>
             <input type="text" name="brand" value={editData.brand} onChange={handleEditChange} className="input" />

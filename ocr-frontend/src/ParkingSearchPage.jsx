@@ -4,38 +4,98 @@ import { API_BASE_URL } from './config';
 function ParkingSearchPage() {
   const [plateNumber, setPlateNumber] = useState('');
   const [results, setResults] = useState([]);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token') || '';
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    setError(null);
+  const normalizePlate = (value) => (value || '').trim().toUpperCase();
+
+  const readError = async (response, fallbackMessage) => {
+    const responseText = await response.text().catch(() => '');
+    if (!responseText) {
+      return fallbackMessage;
+    }
+    try {
+      const parsed = JSON.parse(responseText);
+      if (parsed?.error) {
+        return parsed.error;
+      }
+    } catch (_) {
+      // fallback to text
+    }
+    return responseText;
+  };
+
+  const handleSearch = async (event) => {
+    event.preventDefault();
+    setError('');
     setResults([]);
 
+    const normalized = normalizePlate(plateNumber);
+    if (!normalized) {
+      setError('Introdu un numar de placuta valid.');
+      return;
+    }
+
+    setLoading(true);
     try {
-      const normalizedPlate = plateNumber.trim().toUpperCase();
-      const response = await fetch(`${API_BASE_URL}/api/parking/${encodeURIComponent(normalizedPlate)}`, {
+      const response = await fetch(`${API_BASE_URL}/api/parking/${encodeURIComponent(normalized)}`, {
         headers: {
-          Authorization: `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setResults(data);
-      } else {
-        setError('Nu s-a gasit niciun istoric pentru aceasta placuta.');
+      if (!response.ok) {
+        throw new Error(await readError(response, 'Nu s-a gasit istoric pentru aceasta placuta.'));
       }
+
+      const data = await response.json();
+      setResults(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError('Eroare de retea.');
+      setError(err.message || 'Eroare de retea.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const openEvidence = async (sessionId, type) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/parking/sessions/${sessionId}/evidence/${type}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(await readError(response, 'Dovada foto nu poate fi accesata.'));
+      }
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30_000);
+    } catch (err) {
+      setError(err.message || 'Nu s-a putut deschide dovada foto.');
+    }
+  };
+
+  const formatDuration = (durationMinutes) => {
+    if (!Number.isFinite(durationMinutes) || durationMinutes < 0) {
+      return '-';
+    }
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+    return `${hours}h ${minutes}m`;
   };
 
   return (
     <>
       <div className="search-form">
-        <h2>🅿️ Cauta Istoric de Parcare</h2>
+        <h2>Cauta sesiuni parking</h2>
         <form onSubmit={handleSearch}>
           <input
             type="text"
@@ -45,7 +105,9 @@ function ParkingSearchPage() {
             className="search-input"
             required
           />
-          <button type="submit" className="search-btn">Cauta</button>
+          <button type="submit" className="search-btn" disabled={loading}>
+            {loading ? 'Se cauta...' : 'Cauta'}
+          </button>
         </form>
       </div>
 
@@ -56,15 +118,47 @@ function ParkingSearchPage() {
           <table className="table">
             <thead>
               <tr>
+                <th>Status</th>
                 <th>Intrare</th>
                 <th>Iesire</th>
+                <th>Durata</th>
+                <th>Dovada ENTRY</th>
+                <th>Dovada EXIT</th>
               </tr>
             </thead>
             <tbody>
-              {results.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.entryTime?.replace('T', ' ')}</td>
-                  <td>{r.exitTime?.replace('T', ' ') || 'N/A'}</td>
+              {results.map((session) => (
+                <tr key={session.id}>
+                  <td>{session.status || '-'}</td>
+                  <td>{session.entryTime ? new Date(session.entryTime).toLocaleString() : '-'}</td>
+                  <td>{session.exitTime ? new Date(session.exitTime).toLocaleString() : 'N/A'}</td>
+                  <td>{formatDuration(session.durationMinutes)}</td>
+                  <td>
+                    {session.hasEntryImage ? (
+                      <button
+                        type="button"
+                        className="download-btn"
+                        onClick={() => openEvidence(session.id, 'entry')}
+                      >
+                        Vezi foto ENTRY
+                      </button>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                  <td>
+                    {session.hasExitImage ? (
+                      <button
+                        type="button"
+                        className="download-btn"
+                        onClick={() => openEvidence(session.id, 'exit')}
+                      >
+                        Vezi foto EXIT
+                      </button>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

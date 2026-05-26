@@ -13,10 +13,30 @@ import Navbar from './Navbar';
 import AddPlateWithoutImagePage from './AddPlateWithoutImagePage';
 import DashboardPage from './DashboardPage';
 import VideoAlprPage from './VideoAlprPage';
+import {
+  ROLE_INSURANCE,
+  ROLE_PARKING,
+  ROLE_POLICE,
+  getDefaultRouteForRole,
+  isAuthenticated,
+  normalizeRole,
+} from './authRouting';
 
 
 import './App.css';
 import './index.css';
+
+function RootRedirect() {
+  if (!isAuthenticated()) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('username');
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = normalizeRole(localStorage.getItem('role'));
+  return <Navigate to={getDefaultRouteForRole(role)} replace />;
+}
 
 function App() {
   return (
@@ -26,19 +46,43 @@ function App() {
         <main className="main-container flex-1">
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<Navigate to="/upload" replace />} />
-            <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
-            <Route path="/video-alpr" element={<ProtectedRoute><VideoAlprPage /></ProtectedRoute>} />
-            <Route path="/search" element={<ProtectedRoute><PlateSearchPage /></ProtectedRoute>} />
-            <Route path="/add-insurance" element={<ProtectedRoute><AddInsurancePage /></ProtectedRoute>} />
-            <Route path="/search-insurance" element={<ProtectedRoute><InsuranceSearchPage /></ProtectedRoute>} />
-            <Route path="/add-parking" element={<ProtectedRoute><AddParkingPage /></ProtectedRoute>} />
-            <Route path="/search-parking" element={<ProtectedRoute><ParkingSearchPage /></ProtectedRoute>} />
+            <Route path="/" element={<RootRedirect />} />
+            <Route
+              path="/upload"
+              element={<ProtectedRoute allowedRoles={[ROLE_POLICE]}><UploadPage /></ProtectedRoute>}
+            />
+            <Route
+              path="/video-alpr"
+              element={<ProtectedRoute allowedRoles={[ROLE_POLICE]}><VideoAlprPage /></ProtectedRoute>}
+            />
+            <Route
+              path="/search"
+              element={<ProtectedRoute allowedRoles={[ROLE_POLICE]}><PlateSearchPage /></ProtectedRoute>}
+            />
+            <Route
+              path="/add-insurance"
+              element={<ProtectedRoute allowedRoles={[ROLE_INSURANCE]}><AddInsurancePage /></ProtectedRoute>}
+            />
+            <Route
+              path="/search-insurance"
+              element={<ProtectedRoute allowedRoles={[ROLE_INSURANCE]}><InsuranceSearchPage /></ProtectedRoute>}
+            />
+            <Route
+              path="/add-parking"
+              element={<ProtectedRoute allowedRoles={[ROLE_PARKING]}><AddParkingPage /></ProtectedRoute>}
+            />
+            <Route
+              path="/search-parking"
+              element={<ProtectedRoute allowedRoles={[ROLE_PARKING, ROLE_POLICE]}><ParkingSearchPage /></ProtectedRoute>}
+            />
             <Route
               path="/add-plate-manual"
-              element={<ProtectedRoute><AddPlateWithoutImagePage /></ProtectedRoute>}
+              element={<ProtectedRoute allowedRoles={[ROLE_POLICE]}><AddPlateWithoutImagePage /></ProtectedRoute>}
             />
-            <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route
+              path="/dashboard"
+              element={<ProtectedRoute allowedRoles={[ROLE_POLICE, ROLE_PARKING, ROLE_INSURANCE]}><DashboardPage /></ProtectedRoute>}
+            />
           </Routes>
         </main>
         <footer className="bg-white py-4">

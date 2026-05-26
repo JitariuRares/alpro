@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './VideoAlprPage.css';
 import { API_BASE_URL } from './config';
 
 function VideoAlprPage() {
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
@@ -516,6 +518,13 @@ function VideoAlprPage() {
     }
   };
 
+  const goToVehicleLookup = (plateText) => {
+    if (!plateText) {
+      return;
+    }
+    navigate(`/search?plate=${encodeURIComponent(plateText)}`);
+  };
+
   return (
     <div className="video-page">
       <section className="video-card">
@@ -627,6 +636,7 @@ function VideoAlprPage() {
                 <tr>
                   <th>Placuta</th>
                   <th>Momente detectie</th>
+                  <th>Lookup</th>
                 </tr>
               </thead>
               <tbody>
@@ -653,6 +663,18 @@ function VideoAlprPage() {
                           </button>
                         ))}
                       </div>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="page-btn"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          goToVehicleLookup(item.plateText);
+                        }}
+                      >
+                        Cauta vehicul
+                      </button>
                     </td>
                   </tr>
                 ))}

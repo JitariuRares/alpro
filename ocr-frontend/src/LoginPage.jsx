@@ -3,12 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import './LoginPage.css';
 import { API_BASE_URL } from './config';
 import { parseJwt } from './jwt';
+import { getDefaultRouteForRole, normalizeRole } from './authRouting';
 
 function LoginPage() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('POLICE');
+  const [role, setRole] = useState('PARKING');
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
@@ -37,16 +38,30 @@ function LoginPage() {
         localStorage.setItem('token', data.token);
         localStorage.setItem('username', username.trim());
         if (payload?.role) {
-          localStorage.setItem('role', payload.role);
+          const normalizedRole = normalizeRole(payload.role);
+          if (normalizedRole) {
+            localStorage.setItem('role', normalizedRole);
+          } else {
+            localStorage.removeItem('role');
+          }
         } else {
           localStorage.removeItem('role');
         }
 
         const params = new URLSearchParams(location.search);
-        const redirectTo = params.get('redirect') || '/upload';
+        const redirectTo = params.get('redirect') || getDefaultRouteForRole(payload?.role);
         navigate(redirectTo);
       } else {
-        const msg = await response.text();
+        const responseText = await response.text();
+        let msg = responseText;
+        try {
+          const parsed = JSON.parse(responseText);
+          if (parsed?.error) {
+            msg = parsed.error;
+          }
+        } catch (_) {
+          // keep plain text fallback
+        }
         setError(msg || 'Autentificare esuata');
       }
     } catch (err) {
@@ -57,21 +72,34 @@ function LoginPage() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: username.trim(), password, role }),
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password, role }),
+      });
 
-    if (response.ok) {
-      alert('Cont creat cu succes! Te poti loga acum.');
-      setIsRegistering(false);
-      setUsername('');
-      setPassword('');
-      setRole('POLICE');
-    } else {
-      const msg = await response.text();
-      setError(msg || 'Inregistrare esuata');
+      if (response.ok) {
+        alert('Cont creat cu succes! Te poti loga acum.');
+        setIsRegistering(false);
+        setUsername('');
+        setPassword('');
+        setRole('PARKING');
+      } else {
+        const responseText = await response.text();
+        let msg = responseText;
+        try {
+          const parsed = JSON.parse(responseText);
+          if (parsed?.error) {
+            msg = parsed.error;
+          }
+        } catch (_) {
+          // keep plain text fallback
+        }
+        setError(msg || 'Inregistrare esuata');
+      }
+    } catch (err) {
+      setError('Eroare de retea. Incearca din nou.');
     }
   };
 

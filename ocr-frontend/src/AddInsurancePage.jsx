@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_BASE_URL } from './config';
+import { readApiError, friendlyErrorMessage } from './errorMessages';
 
 function AddInsurancePage() {
   const [plateNumber, setPlateNumber] = useState('');
@@ -20,24 +21,6 @@ function AddInsurancePage() {
     setValidFrom('');
     setValidTo('');
     setEditingInsuranceId(null);
-  };
-
-  const readError = async (response, fallback) => {
-    const text = await response.text().catch(() => '');
-    if (!text) {
-      return fallback;
-    }
-
-    try {
-      const parsed = JSON.parse(text);
-      if (parsed?.error) {
-        return parsed.error;
-      }
-    } catch (_) {
-      // keep plain text
-    }
-
-    return text;
   };
 
   const loadExistingInsurances = async () => {
@@ -62,13 +45,13 @@ function AddInsurancePage() {
       );
 
       if (!response.ok) {
-        throw new Error(await readError(response, 'Eroare la cautarea asigurarilor.'));
+        throw new Error(await readApiError(response, 'Eroare la cautarea asigurarilor.'));
       }
 
       const data = await response.json();
       setExistingInsurances(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message || 'Eroare la cautarea asigurarilor.');
+      setError(friendlyErrorMessage(err.message, 'Eroare la cautarea asigurarilor.'));
     }
   };
 
@@ -110,7 +93,7 @@ function AddInsurancePage() {
         });
 
         if (!response.ok) {
-          throw new Error(await readError(response, 'Eroare la actualizarea politei.'));
+          throw new Error(await readApiError(response, 'Eroare la actualizarea politei.'));
         }
 
         setMessage('Polita a fost actualizata cu succes.');
@@ -129,7 +112,7 @@ function AddInsurancePage() {
       );
 
       if (!plateRes.ok) {
-        throw new Error(await readError(plateRes, 'Nu s-a putut valida placuta.'));
+        throw new Error(await readApiError(plateRes, 'Nu s-a putut valida placuta.'));
       }
 
       const plates = await plateRes.json();
@@ -158,14 +141,14 @@ function AddInsurancePage() {
       });
 
       if (!insuranceRes.ok) {
-        throw new Error(await readError(insuranceRes, 'Eroare la salvarea politei.'));
+        throw new Error(await readApiError(insuranceRes, 'Eroare la salvarea politei.'));
       }
 
       setMessage('Polita a fost adaugata cu succes.');
       resetFormFields();
       await loadExistingInsurances();
     } catch (err) {
-      setError(err.message || 'Eroare neasteptata.');
+      setError(friendlyErrorMessage(err.message, 'Eroare neasteptata.'));
     }
   };
 

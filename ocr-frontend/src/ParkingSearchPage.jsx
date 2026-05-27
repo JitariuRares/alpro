@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_BASE_URL } from './config';
+import { readApiError, friendlyErrorMessage } from './errorMessages';
 
 function ParkingSearchPage() {
   const [plateNumber, setPlateNumber] = useState('');
@@ -10,22 +11,6 @@ function ParkingSearchPage() {
   const token = localStorage.getItem('token') || '';
 
   const normalizePlate = (value) => (value || '').trim().toUpperCase();
-
-  const readError = async (response, fallbackMessage) => {
-    const responseText = await response.text().catch(() => '');
-    if (!responseText) {
-      return fallbackMessage;
-    }
-    try {
-      const parsed = JSON.parse(responseText);
-      if (parsed?.error) {
-        return parsed.error;
-      }
-    } catch (_) {
-      // fallback to text
-    }
-    return responseText;
-  };
 
   const handleSearch = async (event) => {
     event.preventDefault();
@@ -47,13 +32,13 @@ function ParkingSearchPage() {
       });
 
       if (!response.ok) {
-        throw new Error(await readError(response, 'Nu s-a gasit istoric pentru aceasta placuta.'));
+        throw new Error(await readApiError(response, 'Nu s-a gasit istoric pentru aceasta placuta.'));
       }
 
       const data = await response.json();
       setResults(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message || 'Eroare de retea.');
+      setError(friendlyErrorMessage(err.message, 'Eroare de retea.'));
     } finally {
       setLoading(false);
     }
@@ -71,7 +56,7 @@ function ParkingSearchPage() {
       );
 
       if (!response.ok) {
-        throw new Error(await readError(response, 'Dovada foto nu poate fi accesata.'));
+        throw new Error(await readApiError(response, 'Dovada foto nu poate fi accesata.'));
       }
 
       const blob = await response.blob();
@@ -79,7 +64,7 @@ function ParkingSearchPage() {
       window.open(blobUrl, '_blank', 'noopener,noreferrer');
       window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 30_000);
     } catch (err) {
-      setError(err.message || 'Nu s-a putut deschide dovada foto.');
+      setError(friendlyErrorMessage(err.message, 'Nu s-a putut deschide dovada foto.'));
     }
   };
 

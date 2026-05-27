@@ -760,6 +760,21 @@ button:disabled {
   gap: 18px;
 }
 
+.dashboard-hero-status {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+}
+
+.dashboard-hero-status small {
+  width: 100%;
+  color: var(--muted);
+  font-weight: 800;
+  text-align: right;
+}
+
 .dashboard-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -848,6 +863,39 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
   gap: 18px;
+}
+
+.dashboard-flow-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-flow-row button {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+
+.dashboard-flow-row button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.dashboard-flow-row strong {
+  color: #0f172a;
+}
+
+.dashboard-flow-row small {
+  color: var(--muted);
+  font-weight: 750;
 }
 
 .dashboard-panel {
@@ -1020,6 +1068,10 @@ button:disabled {
   color: rgba(255, 255, 255, 0.78);
 }
 
+.case-pdf-btn {
+  white-space: nowrap;
+}
+
 .case-metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1114,6 +1166,13 @@ button:disabled {
   color: var(--muted);
 }
 
+.case-row-note {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-weight: 750;
+}
+
 .audit-filter-panel,
 .audit-table-card {
   padding: 20px;
@@ -1168,6 +1227,7 @@ button:disabled {
   .case-search-panel,
   .case-sections-grid,
   .audit-filter-grid,
+  .dashboard-flow-row,
   .dashboard-ops-grid,
   .dashboard-bottom-grid,
   .review-filter-bar,

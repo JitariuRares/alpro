@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './UploadPage.css';
 import { API_BASE_URL } from './config';
+import { readApiError, friendlyErrorMessage } from './errorMessages';
 
 function UploadPage() {
   const navigate = useNavigate();
@@ -96,8 +97,7 @@ function UploadPage() {
       });
 
       if (!response.ok) {
-        const msg = await response.text().catch(() => null);
-        throw new Error(msg || `Eroare (status ${response.status})`);
+        throw new Error(await readApiError(response, 'Nu s-a putut procesa imaginea.'));
       }
 
       const data = await response.json();
@@ -106,7 +106,7 @@ function UploadPage() {
       setError('');
       setSuccessMessage('');
     } catch (err) {
-      setError(err.message);
+      setError(friendlyErrorMessage(err.message, 'Nu s-a putut procesa imaginea.'));
     }
   };
 
@@ -168,8 +168,7 @@ function UploadPage() {
       });
 
       if (!response.ok) {
-        const msg = await response.text().catch(() => null);
-        throw new Error(msg || `Eroare la actualizare (status ${response.status})`);
+        throw new Error(await readApiError(response, 'Nu s-au putut salva detaliile vehiculului.'));
       }
 
       const updated = await response.json();
@@ -181,7 +180,7 @@ function UploadPage() {
       setSuccessMessage('Detaliile au fost actualizate cu succes!');
       setError('');
     } catch (err) {
-      setError(err.message);
+      setError(friendlyErrorMessage(err.message, 'Nu s-au putut salva detaliile vehiculului.'));
     }
   };
 

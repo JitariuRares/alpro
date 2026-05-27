@@ -5,6 +5,7 @@ import ModuleShell from './ModuleShell';
 import UploadPage from './UploadPage';
 import VideoAlprPage from './VideoAlprPage';
 import { API_BASE_URL } from './config';
+import { readApiError, friendlyErrorMessage } from './errorMessages';
 
 const TABS = [
   { id: 'foto', label: 'Foto', icon: FaCamera },
@@ -40,20 +41,6 @@ function DetectiiReviewPanel() {
     Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
   }), []);
 
-  const readError = async (response) => {
-    const raw = await response.text().catch(() => '');
-    if (!raw) {
-      return `Eroare (status ${response.status})`;
-    }
-
-    try {
-      const data = JSON.parse(raw);
-      return data?.error || data?.detail || raw;
-    } catch (_) {
-      return raw;
-    }
-  };
-
   const confidenceLabel = (confidence) => {
     if (confidence == null || Number.isNaN(Number(confidence))) {
       return '-';
@@ -72,7 +59,7 @@ function DetectiiReviewPanel() {
         });
 
         if (!response.ok) {
-          throw new Error(await readError(response));
+          throw new Error(await readApiError(response, 'Nu s-a putut incarca lista de review.'));
         }
 
         const data = await response.json();
@@ -85,7 +72,7 @@ function DetectiiReviewPanel() {
 
       setItems(data);
     } catch (err) {
-      setError(err.message || 'Nu s-a putut incarca lista de review.');
+      setError(friendlyErrorMessage(err.message, 'Nu s-a putut incarca lista de review.'));
     } finally {
       setLoading(false);
     }
@@ -132,7 +119,7 @@ function DetectiiReviewPanel() {
       });
 
       if (!response.ok) {
-        throw new Error(await readError(response));
+        throw new Error(await readApiError(response, 'Nu s-a putut actualiza statusul detectiei.'));
       }
 
       const updated = await response.json();
@@ -150,7 +137,7 @@ function DetectiiReviewPanel() {
       setRejectingKey('');
       setReviewReason('');
     } catch (err) {
-      setError(err.message || 'Nu s-a putut actualiza statusul detectiei.');
+      setError(friendlyErrorMessage(err.message, 'Nu s-a putut actualiza statusul detectiei.'));
     }
   };
 

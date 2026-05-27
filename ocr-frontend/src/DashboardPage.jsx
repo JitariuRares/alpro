@@ -21,11 +21,13 @@ import {
 } from 'recharts';
 import { API_BASE_URL } from './config';
 import { ROLE_INSURANCE, ROLE_PARKING, ROLE_POLICE, normalizeRole } from './authRouting';
+import { readApiError, friendlyErrorMessage } from './errorMessages';
 
 function DashboardPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState(null);
   const role = normalizeRole(localStorage.getItem('role'));
   const canUsePoliceTools = role === ROLE_POLICE;
   const canUseParking = [ROLE_PARKING, ROLE_POLICE].includes(role);
@@ -42,7 +44,7 @@ function DashboardPage() {
         });
 
         if (!res.ok) {
-          throw new Error('Eroare la incarcarea statisticilor');
+          throw new Error(await readApiError(res, 'Nu s-au putut incarca statisticile.'));
         }
 
         const data = await res.json();
@@ -66,8 +68,9 @@ function DashboardPage() {
           recentVideoJobs: data.recentVideoJobs || [],
           recentAuditEvents: data.recentAuditEvents || [],
         });
+        setLastUpdated(new Date());
       } catch (err) {
-        setError(err.message);
+        setError(friendlyErrorMessage(err.message, 'Nu s-au putut incarca statisticile.'));
       }
     };
 
@@ -85,6 +88,12 @@ function DashboardPage() {
     DETECTION_REOPENED: 'Detectie redeschisa',
   }[action] || action || '-');
 
+  const roleLabel = ({
+    [ROLE_POLICE]: 'POLICE',
+    [ROLE_PARKING]: 'PARKING',
+    [ROLE_INSURANCE]: 'INSURANCE',
+  }[role] || 'USER');
+
   const openVehicle = (plate) => {
     if (canUsePoliceTools && plate) {
       navigate(`/vehicule?tab=cautare&plate=${encodeURIComponent(plate)}`);
@@ -101,7 +110,11 @@ function DashboardPage() {
             Privire rapida peste vehicule, asigurari, sesiuni de parcare si distributia detectiilor recente.
           </p>
         </div>
-        <span className="status-badge success">Online</span>
+        <div className="dashboard-hero-status">
+          <span className="status-badge success">Online</span>
+          <span className="status-badge info">{roleLabel}</span>
+          <small>Refresh: {lastUpdated ? lastUpdated.toLocaleTimeString('ro-RO') : '-'}</small>
+        </div>
       </section>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -154,6 +167,37 @@ function DashboardPage() {
                 <span>Audit recent</span>
                 <strong>{stats.recentAuditEvents.length}</strong>
                 <small>Ultimele evenimente</small>
+              </button>
+            )}
+          </section>
+
+          <section className="dashboard-flow-row">
+            {canUsePoliceTools && (
+              <button type="button" onClick={() => navigate('/detectii?tab=review')}>
+                <span className="status-badge warning">1</span>
+                <strong>Review detectii</strong>
+                <small>Valideaza rezultatele automate.</small>
+              </button>
+            )}
+            {canUsePoliceTools && (
+              <button type="button" onClick={() => navigate('/vehicule')}>
+                <span className="status-badge info">2</span>
+                <strong>Vehicle Case</strong>
+                <small>Verifica dosarul unei placute.</small>
+              </button>
+            )}
+            {canUseParking && (
+              <button type="button" onClick={() => navigate('/parcare')}>
+                <span className="status-badge success">3</span>
+                <strong>Parcare</strong>
+                <small>Controleaza intrari si iesiri.</small>
+              </button>
+            )}
+            {canUsePoliceTools && (
+              <button type="button" onClick={() => navigate('/audit')}>
+                <span className="status-badge danger">4</span>
+                <strong>Audit</strong>
+                <small>Exporta trasabilitatea actiunilor.</small>
               </button>
             )}
           </section>

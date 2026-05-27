@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_BASE_URL } from './config';
+import { readApiError, friendlyErrorMessage } from './errorMessages';
 
 function AddParkingPage() {
   const [entryPlateNumber, setEntryPlateNumber] = useState('');
@@ -15,24 +16,6 @@ function AddParkingPage() {
   const [loadingAction, setLoadingAction] = useState('');
 
   const token = localStorage.getItem('token') || '';
-
-  const readError = async (response, fallbackMessage) => {
-    const responseText = await response.text().catch(() => '');
-    if (!responseText) {
-      return fallbackMessage;
-    }
-
-    try {
-      const parsed = JSON.parse(responseText);
-      if (parsed?.error) {
-        return parsed.error;
-      }
-    } catch (_) {
-      // fallback to plain text
-    }
-
-    return responseText;
-  };
 
   const toLocalDateTimeParam = (value) => {
     if (!value) {
@@ -77,7 +60,7 @@ function AddParkingPage() {
       });
 
       if (!response.ok) {
-        throw new Error(await readError(response, 'A aparut o eroare la inregistrarea ENTRY.'));
+        throw new Error(await readApiError(response, 'A aparut o eroare la inregistrarea ENTRY.'));
       }
 
       const data = await response.json();
@@ -90,7 +73,7 @@ function AddParkingPage() {
         entryInput.value = '';
       }
     } catch (err) {
-      setError(err.message || 'Eroare de retea la ENTRY.');
+      setError(friendlyErrorMessage(err.message, 'Eroare de retea la ENTRY.'));
     } finally {
       setLoadingAction('');
     }
@@ -129,7 +112,7 @@ function AddParkingPage() {
       });
 
       if (!response.ok) {
-        throw new Error(await readError(response, 'A aparut o eroare la inregistrarea EXIT.'));
+        throw new Error(await readApiError(response, 'A aparut o eroare la inregistrarea EXIT.'));
       }
 
       const data = await response.json();
@@ -142,7 +125,7 @@ function AddParkingPage() {
         exitInput.value = '';
       }
     } catch (err) {
-      setError(err.message || 'Eroare de retea la EXIT.');
+      setError(friendlyErrorMessage(err.message, 'Eroare de retea la EXIT.'));
     } finally {
       setLoadingAction('');
     }

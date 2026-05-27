@@ -128,7 +128,10 @@ public class PoliceLookupService {
                 history.getId(),
                 history.getProcessedAt(),
                 history.getConfidence(),
-                bbox(history.getBboxX(), history.getBboxY(), history.getBboxW(), history.getBboxH())
+                bbox(history.getBboxX(), history.getBboxY(), history.getBboxW(), history.getBboxH()),
+                history.getReviewStatus(),
+                history.getReviewedBy(),
+                history.getReviewReason()
         );
     }
 
@@ -139,7 +142,10 @@ public class PoliceLookupService {
                 detection.getTimestampMs(),
                 detection.getTrackId(),
                 detection.getConfidence(),
-                bbox(detection.getBboxX(), detection.getBboxY(), detection.getBboxW(), detection.getBboxH())
+                bbox(detection.getBboxX(), detection.getBboxY(), detection.getBboxW(), detection.getBboxH()),
+                detection.getReviewStatus(),
+                detection.getReviewedBy(),
+                detection.getReviewReason()
         );
     }
 

@@ -1,5 +1,7 @@
 package com.placute.ocrbackend.dto;
 
+import com.placute.ocrbackend.model.DetectionReviewStatus;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -221,12 +223,26 @@ public class PoliceLookupDto {
         private LocalDateTime processedAt;
         private Double confidence;
         private BboxDto bbox;
+        private DetectionReviewStatus reviewStatus;
+        private String reviewedBy;
+        private String reviewReason;
 
-        public OcrDetectionDto(Long id, LocalDateTime processedAt, Double confidence, BboxDto bbox) {
+        public OcrDetectionDto(
+                Long id,
+                LocalDateTime processedAt,
+                Double confidence,
+                BboxDto bbox,
+                DetectionReviewStatus reviewStatus,
+                String reviewedBy,
+                String reviewReason
+        ) {
             this.id = id;
             this.processedAt = processedAt;
             this.confidence = confidence;
             this.bbox = bbox;
+            this.reviewStatus = reviewStatus;
+            this.reviewedBy = reviewedBy;
+            this.reviewReason = reviewReason;
         }
 
         public Long getId() {
@@ -244,6 +260,18 @@ public class PoliceLookupDto {
         public BboxDto getBbox() {
             return bbox;
         }
+
+        public DetectionReviewStatus getReviewStatus() {
+            return reviewStatus;
+        }
+
+        public String getReviewedBy() {
+            return reviewedBy;
+        }
+
+        public String getReviewReason() {
+            return reviewReason;
+        }
     }
 
     public static class VideoDetectionDto {
@@ -253,6 +281,9 @@ public class PoliceLookupDto {
         private Integer trackId;
         private Double confidence;
         private BboxDto bbox;
+        private DetectionReviewStatus reviewStatus;
+        private String reviewedBy;
+        private String reviewReason;
 
         public VideoDetectionDto(
                 Long id,
@@ -260,7 +291,10 @@ public class PoliceLookupDto {
                 Long timestampMs,
                 Integer trackId,
                 Double confidence,
-                BboxDto bbox
+                BboxDto bbox,
+                DetectionReviewStatus reviewStatus,
+                String reviewedBy,
+                String reviewReason
         ) {
             this.id = id;
             this.frameIndex = frameIndex;
@@ -268,6 +302,9 @@ public class PoliceLookupDto {
             this.trackId = trackId;
             this.confidence = confidence;
             this.bbox = bbox;
+            this.reviewStatus = reviewStatus;
+            this.reviewedBy = reviewedBy;
+            this.reviewReason = reviewReason;
         }
 
         public Long getId() {
@@ -292,6 +329,18 @@ public class PoliceLookupDto {
 
         public BboxDto getBbox() {
             return bbox;
+        }
+
+        public DetectionReviewStatus getReviewStatus() {
+            return reviewStatus;
+        }
+
+        public String getReviewedBy() {
+            return reviewedBy;
+        }
+
+        public String getReviewReason() {
+            return reviewReason;
         }
     }
 

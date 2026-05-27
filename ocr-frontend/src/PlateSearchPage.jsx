@@ -11,6 +11,7 @@ import {
 } from 'react-icons/fa';
 import { useLocation } from 'react-router-dom';
 import { API_BASE_URL } from './config';
+import { readApiError, friendlyErrorMessage } from './errorMessages';
 
 const normalizePlate = (value) => (value || '').trim().toUpperCase();
 
@@ -49,23 +50,6 @@ function PlateSearchPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const readError = useCallback(async (response) => {
-    const raw = await response.text().catch(() => '');
-    if (!raw) {
-      return `Eroare la cautare (status ${response.status})`;
-    }
-
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed?.error) {
-        return parsed.error;
-      }
-    } catch (_) {
-      // fallback to raw text
-    }
-    return raw;
-  }, []);
-
   const fetchLookup = useCallback(async (plateNumber) => {
     const normalizedPlate = normalizePlate(plateNumber);
     if (!normalizedPlate) {
@@ -89,18 +73,18 @@ function PlateSearchPage() {
       );
 
       if (!response.ok) {
-        throw new Error(await readError(response));
+        throw new Error(await readApiError(response, 'Nu s-au putut incarca datele vehiculului.'));
       }
 
       const data = await response.json();
       setLookup(data);
       setQuery(normalizedPlate);
     } catch (err) {
-      setError(err.message || 'Eroare neasteptata');
+      setError(friendlyErrorMessage(err.message, 'Nu s-au putut incarca datele vehiculului.'));
     } finally {
       setLoading(false);
     }
-  }, [readError]);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -137,7 +121,7 @@ function PlateSearchPage() {
       );
 
       if (!response.ok) {
-        throw new Error('Eroare la descarcarea PDF-ului');
+        throw new Error(await readApiError(response, 'Nu s-a putut descarca PDF-ul.'));
       }
 
       const blob = await response.blob();
@@ -150,7 +134,7 @@ function PlateSearchPage() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err.message || 'Nu s-a putut descarca PDF-ul');
+      setError(friendlyErrorMessage(err.message, 'Nu s-a putut descarca PDF-ul.'));
     }
   };
 
@@ -198,6 +182,18 @@ function PlateSearchPage() {
     DETECTION_REOPENED: 'Detectie redeschisa',
   }[action] || action || '-');
 
+  const reviewTone = (status) => {
+    if (status === 'CONFIRMED') return 'success';
+    if (status === 'REJECTED') return 'danger';
+    return 'warning';
+  };
+
+  const reviewLabel = (status) => ({
+    CONFIRMED: 'Confirmat',
+    REJECTED: 'Respins',
+    DE_REVIEW: 'De revizuit',
+  }[status] || 'De revizuit');
+
   return (
     <div className="vehicle-case-page">
       <div className="case-search-panel">
@@ -239,9 +235,9 @@ function PlateSearchPage() {
                     <h2>{plate.brand || 'Marca necunoscuta'} {plate.model || ''}</h2>
                     <p>{plate.owner || 'Proprietar necompletat'}</p>
                   </div>
-                  <button onClick={handleDownloadPdf} className="download-btn">
+                  <button onClick={handleDownloadPdf} className="download-btn case-pdf-btn">
                     <FaDownload aria-hidden="true" />
-                    PDF
+                    Export raport PDF
                   </button>
                 </div>
 
@@ -273,6 +269,7 @@ function PlateSearchPage() {
                     <thead>
                       <tr>
                         <th>Companie</th>
+                        <th>Status</th>
                         <th>Valabil de la</th>
                         <th>Valabil pana la</th>
                       </tr>
@@ -281,6 +278,17 @@ function PlateSearchPage() {
                       {lookup.insurances.map((insurance) => (
                         <tr key={insurance.id}>
                           <td>{insurance.company}</td>
+                          <td>
+                            <span className={`status-badge ${
+                              insurance.validFrom && insurance.validTo && new Date(insurance.validFrom) <= today && today <= new Date(insurance.validTo)
+                                ? 'success'
+                                : 'danger'
+                            }`}>
+                              {insurance.validFrom && insurance.validTo && new Date(insurance.validFrom) <= today && today <= new Date(insurance.validTo)
+                                ? 'Activa'
+                                : 'Expirata'}
+                            </span>
+                          </td>
                           <td>{insurance.validFrom || '-'}</td>
                           <td>{insurance.validTo || '-'}</td>
                         </tr>
@@ -309,7 +317,11 @@ function PlateSearchPage() {
                     <tbody>
                       {lookup.parkingHistory.map((parking) => (
                         <tr key={parking.id}>
-                          <td>{parking.status || '-'}</td>
+                          <td>
+                            <span className={`status-badge ${parking.status === 'OPEN' ? 'warning' : 'success'}`}>
+                              {parking.status || '-'}
+                            </span>
+                          </td>
                           <td>{formatDateTime(parking.entryTime)}</td>
                           <td>{parking.exitTime ? formatDateTime(parking.exitTime) : 'N/A'}</td>
                           <td>
@@ -341,6 +353,12 @@ function PlateSearchPage() {
                       <div>
                         <strong>{detection.processedAt ? new Date(detection.processedAt).toLocaleString() : '-'}</strong>
                         <small>
+                          <span className={`status-badge ${reviewTone(detection.reviewStatus)}`}>
+                            {reviewLabel(detection.reviewStatus)}
+                          </span>
+                        </small>
+                        {detection.reviewReason && <small>Motiv: {detection.reviewReason}</small>}
+                        <small>
                           {detection.bbox
                             ? `bbox x:${detection.bbox.x}, y:${detection.bbox.y}, w:${detection.bbox.w}, h:${detection.bbox.h}`
                             : 'fara bbox'}
@@ -364,6 +382,7 @@ function PlateSearchPage() {
                         <th>Timp video</th>
                         <th>Track</th>
                         <th>Confidence</th>
+                        <th>Review</th>
                         <th>BBox</th>
                       </tr>
                     </thead>
@@ -374,6 +393,12 @@ function PlateSearchPage() {
                           <td>{formatVideoTimestamp(detection.timestampMs)}</td>
                           <td>{detection.trackId ?? '-'}</td>
                           <td>{detection.confidence != null ? `${(detection.confidence * 100).toFixed(1)}%` : '-'}</td>
+                          <td>
+                            <span className={`status-badge ${reviewTone(detection.reviewStatus)}`}>
+                              {reviewLabel(detection.reviewStatus)}
+                            </span>
+                            {detection.reviewReason && <small className="case-row-note">{detection.reviewReason}</small>}
+                          </td>
                           <td>
                             {detection.bbox
                               ? `x:${detection.bbox.x}, y:${detection.bbox.y}, w:${detection.bbox.w}, h:${detection.bbox.h}`

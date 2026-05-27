@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import './VideoAlprPage.css';
 import { API_BASE_URL } from './config';
+import { readApiError, friendlyErrorMessage } from './errorMessages';
 
 function VideoAlprPage() {
   const navigate = useNavigate();
@@ -37,22 +38,6 @@ function VideoAlprPage() {
 
   useEffect(() => () => revokeVideoUrl(), [revokeVideoUrl]);
 
-  const readError = async (response) => {
-    const raw = await response.text().catch(() => '');
-    if (raw) {
-      try {
-        const data = JSON.parse(raw);
-        if (data?.error) return data.error;
-        if (data?.detail) return data.detail;
-      } catch (_) {
-        return raw;
-      }
-      return raw;
-    }
-
-    return `Eroare (status ${response.status})`;
-  };
-
   const getDetectionTimestampMs = (detection) => {
     if (Number.isFinite(detection?.timestampMs)) {
       return Number(detection.timestampMs);
@@ -84,7 +69,7 @@ function VideoAlprPage() {
       headers: authHeader,
     });
     if (!response.ok) {
-      throw new Error(await readError(response));
+      throw new Error(await readApiError(response, 'Nu s-au putut incarca job-urile video.'));
     }
     const data = await response.json();
     setJobs(Array.isArray(data) ? data : []);
@@ -96,7 +81,7 @@ function VideoAlprPage() {
       headers: authHeader,
     });
     if (!response.ok) {
-      throw new Error(await readError(response));
+      throw new Error(await readApiError(response, 'Nu s-a putut incarca job-ul video.'));
     }
     const data = await response.json();
     setCurrentJob(data);
@@ -114,7 +99,7 @@ function VideoAlprPage() {
         headers: authHeader,
       });
       if (!response.ok) {
-        throw new Error(await readError(response));
+        throw new Error(await readApiError(response, 'Nu s-au putut incarca rezultatele video.'));
       }
       const data = await response.json();
       const items = Array.isArray(data?.items) ? data.items : [];
@@ -151,7 +136,7 @@ function VideoAlprPage() {
       headers: authHeader,
     });
     if (!response.ok) {
-      throw new Error(await readError(response));
+      throw new Error(await readApiError(response, 'Nu s-a putut incarca fisierul video.'));
     }
     const blob = await response.blob();
     const objectUrl = URL.createObjectURL(blob);
@@ -170,7 +155,7 @@ function VideoAlprPage() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err.message || 'Nu s-au putut incarca job-urile video.');
+          setError(friendlyErrorMessage(err.message, 'Nu s-au putut incarca job-urile video.'));
         }
       }
     })();
@@ -193,7 +178,7 @@ function VideoAlprPage() {
           await loadResults(refreshed.id);
         }
       } catch (err) {
-        setError(err.message || 'Polling status a esuat.');
+        setError(friendlyErrorMessage(err.message, 'Polling status a esuat.'));
       }
     }, 2500);
 
@@ -224,7 +209,7 @@ function VideoAlprPage() {
       });
 
       if (!response.ok) {
-        throw new Error(await readError(response));
+        throw new Error(await readApiError(response, 'Upload video esuat.'));
       }
 
       const createdJob = await response.json();
@@ -233,7 +218,7 @@ function VideoAlprPage() {
       await fetchJobs();
       await loadVideoBlob(createdJob.id);
     } catch (err) {
-      setError(err.message || 'Upload video esuat.');
+      setError(friendlyErrorMessage(err.message, 'Upload video esuat.'));
     } finally {
       setUploading(false);
     }
@@ -253,7 +238,7 @@ function VideoAlprPage() {
         await loadResults(job.id);
       }
     } catch (err) {
-      setError(err.message || 'Nu s-a putut deschide job-ul selectat.');
+      setError(friendlyErrorMessage(err.message, 'Nu s-a putut deschide job-ul selectat.'));
     }
   };
 

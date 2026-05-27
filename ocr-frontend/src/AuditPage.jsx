@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FaClipboardList, FaDownload, FaFilter, FaRedo, FaSearch } from 'react-icons/fa';
 import ModuleShell from './ModuleShell';
 import { API_BASE_URL } from './config';
+import { readApiError, friendlyErrorMessage } from './errorMessages';
 
 const ACTION_OPTIONS = [
   { value: '', label: 'Toate actiunile' },
@@ -58,23 +59,6 @@ function AuditPage() {
     return params.toString();
   }, [filters]);
 
-  const readError = async (response) => {
-    const raw = await response.text().catch(() => '');
-    if (!raw) {
-      return `Eroare la incarcarea auditului (status ${response.status})`;
-    }
-
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed?.error) {
-        return parsed.error;
-      }
-    } catch (_) {
-      // keep plain text fallback
-    }
-    return raw;
-  };
-
   const loadAuditLogs = async () => {
     setLoading(true);
     setError('');
@@ -87,13 +71,13 @@ function AuditPage() {
       });
 
       if (!response.ok) {
-        throw new Error(await readError(response));
+        throw new Error(await readApiError(response, 'Nu s-a putut incarca auditul.'));
       }
 
       const data = await response.json();
       setLogs(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message || 'Nu s-a putut incarca auditul.');
+      setError(friendlyErrorMessage(err.message, 'Nu s-a putut incarca auditul.'));
       setLogs([]);
     } finally {
       setLoading(false);

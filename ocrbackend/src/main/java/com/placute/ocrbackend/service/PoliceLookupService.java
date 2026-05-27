@@ -6,6 +6,7 @@ import com.placute.ocrbackend.model.OcrHistory;
 import com.placute.ocrbackend.model.ParkingHistory;
 import com.placute.ocrbackend.model.ParkingSessionStatus;
 import com.placute.ocrbackend.model.VideoDetection;
+import com.placute.ocrbackend.repository.AuditLogRepository;
 import com.placute.ocrbackend.repository.InsuranceRepository;
 import com.placute.ocrbackend.repository.LicensePlateRepository;
 import com.placute.ocrbackend.repository.OcrHistoryRepository;
@@ -38,6 +39,9 @@ public class PoliceLookupService {
 
     @Autowired
     private VideoDetectionRepository videoDetectionRepository;
+
+    @Autowired
+    private AuditLogRepository auditLogRepository;
 
     public PoliceLookupDto lookupByPlateNumber(String rawPlateNumber) {
         String plateNumber = normalizePlate(rawPlateNumber);
@@ -96,13 +100,26 @@ public class PoliceLookupService {
                 .map(this::toVideoDetectionDto)
                 .toList();
 
+        List<PoliceLookupDto.AuditEventDto> auditEvents = auditLogRepository
+                .findTop10ByTargetPlateNumberOrderByCreatedAtDescIdDesc(plateNumber)
+                .stream()
+                .map(log -> new PoliceLookupDto.AuditEventDto(
+                        log.getId(),
+                        log.getActorUsername(),
+                        log.getAction(),
+                        log.getDetails(),
+                        log.getCreatedAt()
+                ))
+                .toList();
+
         return new PoliceLookupDto(
                 plateNumber,
                 plateDto,
                 insurances,
                 parkingHistory,
                 recentOcrDetections,
-                recentVideoDetections
+                recentVideoDetections,
+                auditEvents
         );
     }
 

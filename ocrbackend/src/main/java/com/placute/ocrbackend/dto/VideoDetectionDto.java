@@ -1,5 +1,9 @@
 package com.placute.ocrbackend.dto;
 
+import com.placute.ocrbackend.model.DetectionReviewStatus;
+
+import java.time.LocalDateTime;
+
 public class VideoDetectionDto {
 
     private Long id;
@@ -9,6 +13,9 @@ public class VideoDetectionDto {
     private String plateText;
     private Double confidence;
     private BboxDto bbox;
+    private DetectionReviewStatus reviewStatus;
+    private String reviewedBy;
+    private LocalDateTime reviewedAt;
 
     public VideoDetectionDto(
             Long id,
@@ -17,7 +24,10 @@ public class VideoDetectionDto {
             Integer trackId,
             String plateText,
             Double confidence,
-            BboxDto bbox
+            BboxDto bbox,
+            DetectionReviewStatus reviewStatus,
+            String reviewedBy,
+            LocalDateTime reviewedAt
     ) {
         this.id = id;
         this.frameIndex = frameIndex;
@@ -26,6 +36,9 @@ public class VideoDetectionDto {
         this.plateText = plateText;
         this.confidence = confidence;
         this.bbox = bbox;
+        this.reviewStatus = reviewStatus;
+        this.reviewedBy = reviewedBy;
+        this.reviewedAt = reviewedAt;
     }
 
     public Long getId() {
@@ -54,6 +67,18 @@ public class VideoDetectionDto {
 
     public BboxDto getBbox() {
         return bbox;
+    }
+
+    public DetectionReviewStatus getReviewStatus() {
+        return reviewStatus;
+    }
+
+    public String getReviewedBy() {
+        return reviewedBy;
+    }
+
+    public LocalDateTime getReviewedAt() {
+        return reviewedAt;
     }
 
     public static class BboxDto {

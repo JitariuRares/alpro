@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { FaCarSide, FaParking, FaShieldAlt } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import {
+  FaArrowRight,
+  FaCarSide,
+  FaClipboardList,
+  FaExclamationTriangle,
+  FaHistory,
+  FaParking,
+  FaShieldAlt,
+  FaVideo,
+} from 'react-icons/fa';
 import {
   Bar,
   BarChart,
@@ -10,10 +20,17 @@ import {
   YAxis,
 } from 'recharts';
 import { API_BASE_URL } from './config';
+import { ROLE_INSURANCE, ROLE_PARKING, ROLE_POLICE, normalizeRole } from './authRouting';
 
 function DashboardPage() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
+  const role = normalizeRole(localStorage.getItem('role'));
+  const canUsePoliceTools = role === ROLE_POLICE;
+  const canUseParking = [ROLE_PARKING, ROLE_POLICE].includes(role);
+  const canUseInsurance = [ROLE_INSURANCE, ROLE_POLICE].includes(role);
+  const canManageInsurance = role === ROLE_INSURANCE;
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -38,7 +55,16 @@ function DashboardPage() {
           totalPlates: data.totalPlates,
           totalInsurances: data.totalInsurances,
           totalParkings: data.totalParkings,
+          activeInsurances: data.activeInsurances || 0,
+          expiredInsurances: data.expiredInsurances || 0,
+          expiringInsurancesNext30Days: data.expiringInsurancesNext30Days || 0,
+          openParkings: data.openParkings || 0,
+          pendingDetectionReviews: data.pendingDetectionReviews || 0,
+          runningVideoJobs: data.runningVideoJobs || 0,
           topCounties: countiesArray,
+          recentOpenParkings: data.recentOpenParkings || [],
+          recentVideoJobs: data.recentVideoJobs || [],
+          recentAuditEvents: data.recentAuditEvents || [],
         });
       } catch (err) {
         setError(err.message);
@@ -47,6 +73,23 @@ function DashboardPage() {
 
     fetchStats();
   }, []);
+
+  const formatDateTime = (value) => (value ? new Date(value).toLocaleString('ro-RO') : '-');
+
+  const actionLabel = (action) => ({
+    POLICE_LOOKUP: 'Lookup politie',
+    INSURANCE_CREATE: 'Polita creata',
+    INSURANCE_UPDATE: 'Polita actualizata',
+    DETECTION_CONFIRMED: 'Detectie confirmata',
+    DETECTION_REJECTED: 'Detectie respinsa',
+    DETECTION_REOPENED: 'Detectie redeschisa',
+  }[action] || action || '-');
+
+  const openVehicle = (plate) => {
+    if (canUsePoliceTools && plate) {
+      navigate(`/vehicule?tab=cautare&plate=${encodeURIComponent(plate)}`);
+    }
+  };
 
   return (
     <div className="dashboard-page">
@@ -66,44 +109,184 @@ function DashboardPage() {
       {stats && (
         <>
           <section className="dashboard-stats-grid">
-            <div className="stat-card">
-              <div className="stat-icon blue"><FaCarSide aria-hidden="true" /></div>
-              <span>Vehicule</span>
-              <strong>{stats.totalPlates}</strong>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon green"><FaShieldAlt aria-hidden="true" /></div>
-              <span>Polite</span>
-              <strong>{stats.totalInsurances}</strong>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon orange"><FaParking aria-hidden="true" /></div>
-              <span>Sesiuni parcare</span>
-              <strong>{stats.totalParkings}</strong>
-            </div>
+            {canUsePoliceTools && (
+              <button type="button" className="stat-card clickable" onClick={() => navigate('/vehicule')}>
+                <div className="stat-icon blue"><FaCarSide aria-hidden="true" /></div>
+                <span>Vehicule</span>
+                <strong>{stats.totalPlates}</strong>
+              </button>
+            )}
+            {canUseInsurance && (
+              <button type="button" className="stat-card clickable" onClick={() => navigate('/asigurari')}>
+                <div className="stat-icon green"><FaShieldAlt aria-hidden="true" /></div>
+                <span>Polite active</span>
+                <strong>{stats.activeInsurances}</strong>
+                <small>{stats.expiringInsurancesNext30Days} expira in 30 zile</small>
+              </button>
+            )}
+            {canUseParking && (
+              <button type="button" className="stat-card clickable" onClick={() => navigate('/parcare')}>
+                <div className="stat-icon orange"><FaParking aria-hidden="true" /></div>
+                <span>Parcari deschise</span>
+                <strong>{stats.openParkings}</strong>
+                <small>{stats.totalParkings} sesiuni total</small>
+              </button>
+            )}
+            {canUsePoliceTools && (
+              <button type="button" className="stat-card clickable urgent" onClick={() => navigate('/detectii?tab=review')}>
+                <div className="stat-icon red"><FaExclamationTriangle aria-hidden="true" /></div>
+                <span>Detectii de revizuit</span>
+                <strong>{stats.pendingDetectionReviews}</strong>
+                <small>Foto + video brute</small>
+              </button>
+            )}
+            {canUsePoliceTools && (
+              <button type="button" className="stat-card clickable" onClick={() => navigate('/detectii?tab=video')}>
+                <div className="stat-icon violet"><FaVideo aria-hidden="true" /></div>
+                <span>Video jobs active</span>
+                <strong>{stats.runningVideoJobs}</strong>
+                <small>Pending sau running</small>
+              </button>
+            )}
+            {canUsePoliceTools && (
+              <button type="button" className="stat-card clickable" onClick={() => navigate('/audit')}>
+                <div className="stat-icon dark"><FaClipboardList aria-hidden="true" /></div>
+                <span>Audit recent</span>
+                <strong>{stats.recentAuditEvents.length}</strong>
+                <small>Ultimele evenimente</small>
+              </button>
+            )}
           </section>
 
-          <section className="card dashboard-chart-card">
+          <section className="dashboard-ops-grid">
+            <div className="dashboard-panel">
+              <div className="section-heading">
+                <div>
+                  <span className="module-eyebrow">Actiuni rapide</span>
+                  <h2>De verificat</h2>
+                </div>
+                <FaArrowRight aria-hidden="true" />
+              </div>
+              <div className="ops-list">
+                {canUsePoliceTools && (
+                  <button type="button" onClick={() => navigate('/detectii?tab=review')}>
+                    <span className="status-badge warning">{stats.pendingDetectionReviews}</span>
+                    <strong>Detectii asteapta review</strong>
+                    <small>Confirma sau respinge cazurile generate de ML-OCR.</small>
+                  </button>
+                )}
+                {canUseInsurance && (
+                  <button type="button" onClick={() => navigate(`/asigurari${canManageInsurance ? '?tab=gestiune' : ''}`)}>
+                    <span className="status-badge danger">{stats.expiredInsurances}</span>
+                    <strong>Polite expirate</strong>
+                    <small>Verifica politele depasite sau lipsa pentru vehicule.</small>
+                  </button>
+                )}
+                {canUseParking && (
+                  <button type="button" onClick={() => navigate('/parcare')}>
+                    <span className="status-badge info">{stats.openParkings}</span>
+                    <strong>Sesiuni de parcare deschise</strong>
+                    <small>Urmeaza intrarile fara iesire inregistrata.</small>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {canUseParking && (
+            <div className="dashboard-panel">
+              <div className="section-heading">
+                <div>
+                  <span className="module-eyebrow">Parking live</span>
+                  <h2>Intrari deschise</h2>
+                </div>
+                <span className="status-badge info">{stats.recentOpenParkings.length}</span>
+              </div>
+              {stats.recentOpenParkings.length > 0 ? (
+                <div className="compact-list">
+                  {stats.recentOpenParkings.map((parking) => (
+                    <button type="button" key={parking.id} onClick={() => openVehicle(parking.plateNumber)}>
+                      <strong>{parking.plateNumber || '-'}</strong>
+                      <small>{formatDateTime(parking.entryTime)}</small>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="case-empty">Nu exista parcari deschise.</p>
+              )}
+            </div>
+            )}
+          </section>
+
+          <section className="dashboard-bottom-grid">
+            <div className="dashboard-panel dashboard-chart-card">
+              <div className="section-heading">
+                <div>
+                  <span className="module-eyebrow">Ultimele 7 zile</span>
+                  <h2>Top judete detectate</h2>
+                </div>
+                <span className="status-badge info">{stats.topCounties.length} active</span>
+              </div>
+              {stats.topCounties.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={stats.topCounties}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="county" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#2563eb" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="case-empty">Nu exista detectii recente pentru chart.</p>
+              )}
+            </div>
+
+            {canUsePoliceTools && (
+            <div className="dashboard-panel">
+              <div className="section-heading">
+                <div>
+                  <span className="module-eyebrow">Procesare</span>
+                  <h2>Video jobs recente</h2>
+                </div>
+                <FaVideo aria-hidden="true" />
+              </div>
+              <div className="compact-list">
+                {stats.recentVideoJobs.map((job) => (
+                  <button type="button" key={job.id} onClick={() => navigate('/detectii?tab=video')}>
+                    <strong>{job.sourceFilename || `Job #${job.id}`}</strong>
+                    <small>{job.status || '-'} - {job.progressPercent ?? 0}% - {formatDateTime(job.createdAt)}</small>
+                  </button>
+                ))}
+                {stats.recentVideoJobs.length === 0 && <p className="case-empty">Nu exista joburi video recente.</p>}
+              </div>
+            </div>
+            )}
+          </section>
+
+          {canUsePoliceTools && (
+          <section className="dashboard-panel">
             <div className="section-heading">
               <div>
-                <span className="module-eyebrow">Ultimele 7 zile</span>
-                <h2>Top judete detectate</h2>
+                <span className="module-eyebrow">Trasabilitate</span>
+                <h2>Audit recent</h2>
               </div>
-              <span className="status-badge info">{stats.topCounties.length} active</span>
+              <FaHistory aria-hidden="true" />
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                data={stats.topCounties}
-                margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="county" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#2563eb" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="audit-strip">
+              {stats.recentAuditEvents.map((event) => (
+                <button type="button" key={event.id} onClick={() => openVehicle(event.targetPlateNumber)}>
+                  <span className="status-badge info">{actionLabel(event.action)}</span>
+                  <strong>{event.targetPlateNumber || 'General'}</strong>
+                  <small>{event.actorUsername || '-'} - {formatDateTime(event.createdAt)}</small>
+                </button>
+              ))}
+              {stats.recentAuditEvents.length === 0 && <p className="case-empty">Nu exista audit recent.</p>}
+            </div>
           </section>
+          )}
         </>
       )}
     </div>

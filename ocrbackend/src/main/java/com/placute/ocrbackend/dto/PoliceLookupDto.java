@@ -12,6 +12,7 @@ public class PoliceLookupDto {
     private List<ParkingDto> parkingHistory;
     private List<OcrDetectionDto> recentOcrDetections;
     private List<VideoDetectionDto> recentVideoDetections;
+    private List<AuditEventDto> auditEvents;
 
     public PoliceLookupDto(
             String plateNumber,
@@ -19,7 +20,8 @@ public class PoliceLookupDto {
             List<InsuranceDto> insurances,
             List<ParkingDto> parkingHistory,
             List<OcrDetectionDto> recentOcrDetections,
-            List<VideoDetectionDto> recentVideoDetections
+            List<VideoDetectionDto> recentVideoDetections,
+            List<AuditEventDto> auditEvents
     ) {
         this.plateNumber = plateNumber;
         this.plate = plate;
@@ -27,6 +29,7 @@ public class PoliceLookupDto {
         this.parkingHistory = parkingHistory;
         this.recentOcrDetections = recentOcrDetections;
         this.recentVideoDetections = recentVideoDetections;
+        this.auditEvents = auditEvents;
     }
 
     public String getPlateNumber() {
@@ -51,6 +54,10 @@ public class PoliceLookupDto {
 
     public List<VideoDetectionDto> getRecentVideoDetections() {
         return recentVideoDetections;
+    }
+
+    public List<AuditEventDto> getAuditEvents() {
+        return auditEvents;
     }
 
     public static class PlateDto {
@@ -285,6 +292,42 @@ public class PoliceLookupDto {
 
         public BboxDto getBbox() {
             return bbox;
+        }
+    }
+
+    public static class AuditEventDto {
+        private Long id;
+        private String actorUsername;
+        private String action;
+        private String details;
+        private LocalDateTime createdAt;
+
+        public AuditEventDto(Long id, String actorUsername, String action, String details, LocalDateTime createdAt) {
+            this.id = id;
+            this.actorUsername = actorUsername;
+            this.action = action;
+            this.details = details;
+            this.createdAt = createdAt;
+        }
+
+        public Long getId() {
+            return id;
+        }
+
+        public String getActorUsername() {
+            return actorUsername;
+        }
+
+        public String getAction() {
+            return action;
+        }
+
+        public String getDetails() {
+            return details;
+        }
+
+        public LocalDateTime getCreatedAt() {
+            return createdAt;
         }
     }
 

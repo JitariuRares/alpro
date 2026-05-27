@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FaCarSide, FaPlusCircle } from 'react-icons/fa';
 import ModuleShell from './ModuleShell';
 import PlateSearchPage from './PlateSearchPage';
 import AddPlateWithoutImagePage from './AddPlateWithoutImagePage';
+import { ROLE_POLICE, normalizeRole } from './authRouting';
 
 const TABS = [
   { id: 'cautare', label: 'Cautare', icon: FaCarSide },
@@ -12,7 +13,11 @@ const TABS = [
 
 function VehiculePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'cautare';
+  const role = normalizeRole(localStorage.getItem('role'));
+  const canAddPlate = role === ROLE_POLICE;
+  const tabs = useMemo(() => TABS.filter((tab) => canAddPlate || tab.id !== 'adauga'), [canAddPlate]);
+  const requestedTab = searchParams.get('tab') || 'cautare';
+  const activeTab = tabs.some((tab) => tab.id === requestedTab) ? requestedTab : 'cautare';
 
   const changeTab = (tab) => {
     const next = new URLSearchParams(searchParams);
@@ -25,7 +30,7 @@ function VehiculePage() {
       eyebrow="Vehicle Case"
       title="Vehicule"
       subtitle="Cauta o placuta, vezi datele agregate si adauga manual vehicule cand lipsesc din baza."
-      tabs={TABS}
+      tabs={tabs}
       activeTab={activeTab}
       onTabChange={changeTab}
     >

@@ -1,6 +1,7 @@
 package com.placute.ocrbackend.dto;
 
 import java.time.LocalDateTime;
+import com.placute.ocrbackend.model.DetectionReviewStatus;
 
 public class OcrHistoryDto {
 
@@ -13,6 +14,9 @@ public class OcrHistoryDto {
     private LocalDateTime processedAt;
     private Double confidence;
     private BboxDto bbox;
+    private DetectionReviewStatus reviewStatus;
+    private String reviewedBy;
+    private LocalDateTime reviewedAt;
 
     public OcrHistoryDto(
             Long id,
@@ -23,7 +27,10 @@ public class OcrHistoryDto {
             String imagePath,
             LocalDateTime processedAt,
             Double confidence,
-            BboxDto bbox
+            BboxDto bbox,
+            DetectionReviewStatus reviewStatus,
+            String reviewedBy,
+            LocalDateTime reviewedAt
     ) {
         this.id = id;
         this.plateNumber = plateNumber;
@@ -34,6 +41,9 @@ public class OcrHistoryDto {
         this.processedAt = processedAt;
         this.confidence = confidence;
         this.bbox = bbox;
+        this.reviewStatus = reviewStatus;
+        this.reviewedBy = reviewedBy;
+        this.reviewedAt = reviewedAt;
     }
 
     public Long getId() {
@@ -62,6 +72,15 @@ public class OcrHistoryDto {
     }
     public BboxDto getBbox() {
         return bbox;
+    }
+    public DetectionReviewStatus getReviewStatus() {
+        return reviewStatus;
+    }
+    public String getReviewedBy() {
+        return reviewedBy;
+    }
+    public LocalDateTime getReviewedAt() {
+        return reviewedAt;
     }
 
     public static class BboxDto {

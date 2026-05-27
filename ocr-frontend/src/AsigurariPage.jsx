@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FaSearch, FaShieldAlt } from 'react-icons/fa';
 import ModuleShell from './ModuleShell';
 import AddInsurancePage from './AddInsurancePage';
 import InsuranceSearchPage from './InsuranceSearchPage';
+import { ROLE_INSURANCE, normalizeRole } from './authRouting';
 
 const TABS = [
   { id: 'cautare', label: 'Cautare', icon: FaSearch },
@@ -12,7 +13,11 @@ const TABS = [
 
 function AsigurariPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'cautare';
+  const role = normalizeRole(localStorage.getItem('role'));
+  const canManagePolicies = role === ROLE_INSURANCE;
+  const tabs = useMemo(() => TABS.filter((tab) => canManagePolicies || tab.id !== 'gestiune'), [canManagePolicies]);
+  const requestedTab = searchParams.get('tab') || 'cautare';
+  const activeTab = tabs.some((tab) => tab.id === requestedTab) ? requestedTab : 'cautare';
 
   const changeTab = (tab) => {
     setSearchParams({ tab });
@@ -23,7 +28,7 @@ function AsigurariPage() {
       eyebrow="Insurance Desk"
       title="Asigurari"
       subtitle="Cauta polite dupa placuta si gestioneaza intervalele de valabilitate."
-      tabs={TABS}
+      tabs={tabs}
       activeTab={activeTab}
       onTabChange={changeTab}
     >

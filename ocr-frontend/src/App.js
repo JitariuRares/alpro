@@ -63,7 +63,7 @@ function App() {
             />
             <Route
               path="/vehicule"
-              element={<ProtectedRoute allowedRoles={[ROLE_POLICE, ROLE_PARKING, ROLE_INSURANCE]}><VehiculePage /></ProtectedRoute>}
+              element={<ProtectedRoute allowedRoles={[ROLE_POLICE]}><VehiculePage /></ProtectedRoute>}
             />
             <Route
               path="/parcare"

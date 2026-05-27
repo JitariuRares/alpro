@@ -31,6 +31,24 @@ class SecurityRbacIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void parkingRoleCannotAccessAuditLogs() throws Exception {
+        String parkingToken = createUserAndGetToken("parking", UserRole.PARKING);
+
+        mockMvc.perform(get("/api/audit")
+                        .header("Authorization", bearer(parkingToken)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void parkingRoleCannotAccessDetectionReview() throws Exception {
+        String parkingToken = createUserAndGetToken("parking", UserRole.PARKING);
+
+        mockMvc.perform(get("/api/detection-review")
+                        .header("Authorization", bearer(parkingToken)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void policeRoleCannotCreateInsurance() throws Exception {
         String policeToken = createUserAndGetToken("police", UserRole.POLICE);
         createPlate("B123ABC");

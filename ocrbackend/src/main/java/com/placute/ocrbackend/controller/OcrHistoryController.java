@@ -42,7 +42,10 @@ public class OcrHistoryController {
                             lp.getImagePath(),
                             h.getProcessedAt(),
                             h.getConfidence(),
-                            bboxDto
+                            bboxDto,
+                            h.getReviewStatus(),
+                            h.getReviewedBy(),
+                            h.getReviewedAt()
                     );
                 })
                 .collect(Collectors.toList());
@@ -74,7 +77,10 @@ public class OcrHistoryController {
                             lp.getImagePath(),
                             h.getProcessedAt(),
                             h.getConfidence(),
-                            bboxDto
+                            bboxDto,
+                            h.getReviewStatus(),
+                            h.getReviewedBy(),
+                            h.getReviewedAt()
                     );
                 })
                 .collect(Collectors.toList());

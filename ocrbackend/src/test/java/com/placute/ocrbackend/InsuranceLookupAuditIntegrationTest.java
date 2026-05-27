@@ -65,7 +65,22 @@ class InsuranceLookupAuditIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", bearer(policeToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.plateNumber").value("B444LIC"))
-                .andExpect(jsonPath("$.insurances[0].company").value("Groupama"));
+                .andExpect(jsonPath("$.insurances[0].company").value("Groupama"))
+                .andExpect(jsonPath("$.auditEvents[0].action").value("INSURANCE_UPDATE"))
+                .andExpect(jsonPath("$.auditEvents[0].actorUsername").exists());
+
+        mockMvc.perform(get("/api/audit")
+                        .param("plate", "B444LIC")
+                        .param("limit", "10")
+                        .header("Authorization", bearer(policeToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].targetPlateNumber").value("B444LIC"));
+
+        mockMvc.perform(get("/api/audit")
+                        .param("action", "INSURANCE_UPDATE")
+                        .header("Authorization", bearer(policeToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].action").value("INSURANCE_UPDATE"));
 
         List<AuditLog> auditLogs = auditLogRepository.findAll();
         List<String> actions = auditLogs.stream()

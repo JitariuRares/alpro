@@ -44,7 +44,24 @@ public class OcrHistory {
     @Column(name = "bbox_h")
     private Integer bboxH;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "review_status", length = 32)
+    private DetectionReviewStatus reviewStatus = DetectionReviewStatus.DE_REVIEW;
+
+    @Column(name = "reviewed_by", length = 100)
+    private String reviewedBy;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
     public OcrHistory() { }
+
+    @PrePersist
+    public void prePersist() {
+        if (reviewStatus == null) {
+            reviewStatus = DetectionReviewStatus.DE_REVIEW;
+        }
+    }
 
 
     public OcrHistory(
@@ -135,5 +152,26 @@ public class OcrHistory {
     }
     public void setBboxH(Integer bboxH) {
         this.bboxH = bboxH;
+    }
+
+    public DetectionReviewStatus getReviewStatus() {
+        return reviewStatus;
+    }
+    public void setReviewStatus(DetectionReviewStatus reviewStatus) {
+        this.reviewStatus = reviewStatus;
+    }
+
+    public String getReviewedBy() {
+        return reviewedBy;
+    }
+    public void setReviewedBy(String reviewedBy) {
+        this.reviewedBy = reviewedBy;
+    }
+
+    public LocalDateTime getReviewedAt() {
+        return reviewedAt;
+    }
+    public void setReviewedAt(LocalDateTime reviewedAt) {
+        this.reviewedAt = reviewedAt;
     }
 }

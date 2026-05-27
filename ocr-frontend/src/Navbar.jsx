@@ -47,7 +47,7 @@ function Navbar() {
   };
 
   const canSeeDetectii = role === ROLE_POLICE;
-  const canSeeVehicule = [ROLE_POLICE, ROLE_PARKING, ROLE_INSURANCE].includes(role);
+  const canSeeVehicule = role === ROLE_POLICE;
   const canSeeParcare = [ROLE_PARKING, ROLE_POLICE].includes(role);
   const canSeeAsigurari = [ROLE_INSURANCE, ROLE_POLICE].includes(role);
   const canSeeAudit = role === ROLE_POLICE;

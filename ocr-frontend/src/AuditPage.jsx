@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FaClipboardList, FaFilter, FaRedo, FaSearch } from 'react-icons/fa';
+import { FaClipboardList, FaDownload, FaFilter, FaRedo, FaSearch } from 'react-icons/fa';
 import ModuleShell from './ModuleShell';
 import { API_BASE_URL } from './config';
 
@@ -23,11 +23,20 @@ function actionTone(action) {
   return 'info';
 }
 
+function actionLabel(action) {
+  return ACTION_OPTIONS.find((option) => option.value === action)?.label || action || '-';
+}
+
 function formatDate(value) {
   if (!value) {
     return '-';
   }
   return new Date(value).toLocaleString();
+}
+
+function csvCell(value) {
+  const normalized = value == null || value === '' ? '-' : String(value);
+  return `"${normalized.replace(/"/g, '""')}"`;
 }
 
 function AuditPage() {
@@ -104,6 +113,34 @@ function AuditPage() {
     setFilters({ actor: '', action: '', plate: '' });
   };
 
+  const exportCsv = () => {
+    if (logs.length === 0) {
+      return;
+    }
+
+    const header = ['Timp', 'Actor', 'Actiune', 'Placuta', 'Detalii'];
+    const rows = logs.map((log) => [
+      formatDate(log.createdAt),
+      log.actorUsername || '-',
+      actionLabel(log.action),
+      log.targetPlateNumber || '-',
+      log.details || '-',
+    ]);
+    const csv = [header, ...rows]
+      .map((row) => row.map(csvCell).join(','))
+      .join('\r\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    link.href = url;
+    link.download = `alpro-audit-${timestamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <ModuleShell
       eyebrow="Trasabilitate"
@@ -155,6 +192,10 @@ function AuditPage() {
               <FaRedo aria-hidden="true" />
               Reset
             </button>
+            <button type="button" className="download-btn" onClick={exportCsv} disabled={logs.length === 0}>
+              <FaDownload aria-hidden="true" />
+              Export CSV
+            </button>
           </div>
         </div>
       </section>
@@ -181,7 +222,7 @@ function AuditPage() {
                     <td><strong>{log.actorUsername || '-'}</strong></td>
                     <td>
                       <span className={`status-badge ${actionTone(log.action)}`}>
-                        {log.action || '-'}
+                        {actionLabel(log.action)}
                       </span>
                     </td>
                     <td>{log.targetPlateNumber || '-'}</td>

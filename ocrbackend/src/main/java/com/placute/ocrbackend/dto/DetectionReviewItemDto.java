@@ -15,6 +15,7 @@ public record DetectionReviewItemDto(
         String detail,
         DetectionReviewStatus reviewStatus,
         String reviewedBy,
-        LocalDateTime reviewedAt
+        LocalDateTime reviewedAt,
+        String reviewReason
 ) {
 }

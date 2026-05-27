@@ -669,6 +669,15 @@ button:disabled {
   line-height: 1.45;
 }
 
+.review-reason {
+  width: fit-content;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  background: #fff1f2;
+  color: #be123c !important;
+  font-weight: 800;
+}
+
 .review-source-pill {
   width: fit-content;
   min-height: 24px;
@@ -695,6 +704,46 @@ button:disabled {
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.review-reject-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #fecdd3;
+  border-radius: var(--radius);
+  background: #fff7f8;
+}
+
+.review-reject-panel textarea {
+  width: 100%;
+  min-height: 78px;
+  resize: vertical;
+  border: 1px solid #fda4af;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  color: #0f172a;
+  font: inherit;
+}
+
+.review-reject-panel textarea:focus {
+  outline: none;
+  border-color: #e11d48;
+  box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.12);
+}
+
+.review-reject-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.review-reject-actions small {
+  margin-right: auto;
+  color: var(--muted);
+  font-weight: 800;
 }
 
 .page-btn.success-action {

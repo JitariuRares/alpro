@@ -192,7 +192,8 @@ public class VideoJobService {
                 bboxDto,
                 detection.getReviewStatus(),
                 detection.getReviewedBy(),
-                detection.getReviewedAt()
+                detection.getReviewedAt(),
+                detection.getReviewReason()
         );
     }
 

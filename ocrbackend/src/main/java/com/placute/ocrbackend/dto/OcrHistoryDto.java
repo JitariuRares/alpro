@@ -17,6 +17,7 @@ public class OcrHistoryDto {
     private DetectionReviewStatus reviewStatus;
     private String reviewedBy;
     private LocalDateTime reviewedAt;
+    private String reviewReason;
 
     public OcrHistoryDto(
             Long id,
@@ -30,7 +31,8 @@ public class OcrHistoryDto {
             BboxDto bbox,
             DetectionReviewStatus reviewStatus,
             String reviewedBy,
-            LocalDateTime reviewedAt
+            LocalDateTime reviewedAt,
+            String reviewReason
     ) {
         this.id = id;
         this.plateNumber = plateNumber;
@@ -44,6 +46,7 @@ public class OcrHistoryDto {
         this.reviewStatus = reviewStatus;
         this.reviewedBy = reviewedBy;
         this.reviewedAt = reviewedAt;
+        this.reviewReason = reviewReason;
     }
 
     public Long getId() {
@@ -81,6 +84,9 @@ public class OcrHistoryDto {
     }
     public LocalDateTime getReviewedAt() {
         return reviewedAt;
+    }
+    public String getReviewReason() {
+        return reviewReason;
     }
 
     public static class BboxDto {

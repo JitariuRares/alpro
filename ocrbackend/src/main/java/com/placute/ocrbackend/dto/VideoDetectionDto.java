@@ -16,6 +16,7 @@ public class VideoDetectionDto {
     private DetectionReviewStatus reviewStatus;
     private String reviewedBy;
     private LocalDateTime reviewedAt;
+    private String reviewReason;
 
     public VideoDetectionDto(
             Long id,
@@ -27,7 +28,8 @@ public class VideoDetectionDto {
             BboxDto bbox,
             DetectionReviewStatus reviewStatus,
             String reviewedBy,
-            LocalDateTime reviewedAt
+            LocalDateTime reviewedAt,
+            String reviewReason
     ) {
         this.id = id;
         this.frameIndex = frameIndex;
@@ -39,6 +41,7 @@ public class VideoDetectionDto {
         this.reviewStatus = reviewStatus;
         this.reviewedBy = reviewedBy;
         this.reviewedAt = reviewedAt;
+        this.reviewReason = reviewReason;
     }
 
     public Long getId() {
@@ -79,6 +82,10 @@ public class VideoDetectionDto {
 
     public LocalDateTime getReviewedAt() {
         return reviewedAt;
+    }
+
+    public String getReviewReason() {
+        return reviewReason;
     }
 
     public static class BboxDto {

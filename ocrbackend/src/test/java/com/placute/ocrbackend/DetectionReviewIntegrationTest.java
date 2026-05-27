@@ -117,7 +117,8 @@ class DetectionReviewIntegrationTest extends BaseIntegrationTest {
         String updateBody = """
                 {
                   "status": "REJECTED",
-                  "plateNumber": "B999VID"
+                  "plateNumber": "B999VID",
+                  "reviewReason": "Text instabil in cadrele video"
                 }
                 """;
 
@@ -129,11 +130,13 @@ class DetectionReviewIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.sourceType").value("video"))
                 .andExpect(jsonPath("$.sourceId").value(job.getId()))
                 .andExpect(jsonPath("$.occurrenceCount").value(3))
-                .andExpect(jsonPath("$.reviewStatus").value("REJECTED"));
+                .andExpect(jsonPath("$.reviewStatus").value("REJECTED"))
+                .andExpect(jsonPath("$.reviewReason").value("Text instabil in cadrele video"));
 
         List<VideoDetection> rejectedGroup = videoDetectionRepository.findByJobIdAndPlateTextWithJob(job.getId(), "B999VID");
         assertThat(rejectedGroup).hasSize(3);
         assertThat(rejectedGroup).allMatch(detection -> detection.getReviewStatus() == DetectionReviewStatus.REJECTED);
+        assertThat(rejectedGroup).allMatch(detection -> "Text instabil in cadrele video".equals(detection.getReviewReason()));
 
         List<VideoDetection> untouchedGroup = videoDetectionRepository.findByJobIdAndPlateTextWithJob(job.getId(), "B111ALT");
         assertThat(untouchedGroup).hasSize(1);

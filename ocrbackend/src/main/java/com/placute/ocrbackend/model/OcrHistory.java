@@ -54,6 +54,9 @@ public class OcrHistory {
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
+    @Column(name = "review_reason", length = 500)
+    private String reviewReason;
+
     public OcrHistory() { }
 
     @PrePersist
@@ -173,5 +176,12 @@ public class OcrHistory {
     }
     public void setReviewedAt(LocalDateTime reviewedAt) {
         this.reviewedAt = reviewedAt;
+    }
+
+    public String getReviewReason() {
+        return reviewReason;
+    }
+    public void setReviewReason(String reviewReason) {
+        this.reviewReason = reviewReason;
     }
 }

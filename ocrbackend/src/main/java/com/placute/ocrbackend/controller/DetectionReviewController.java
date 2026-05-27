@@ -89,16 +89,22 @@ public class DetectionReviewController {
             Authentication authentication
     ) {
         DetectionReviewStatus nextStatus = validateReviewStatus(request);
+        String reviewReason = normalizeReviewReason(request.reviewReason(), nextStatus);
         String normalizedSourceType = sourceType.trim().toLowerCase(Locale.ROOT);
 
         if ("foto".equals(normalizedSourceType) || "photo".equals(normalizedSourceType)) {
             OcrHistory history = ocrHistoryRepository.findByIdWithLicensePlate(sourceId)
                     .orElseThrow(() -> new RuntimeException("Detectia foto nu exista."));
-            applyReview(history, nextStatus, authentication);
+            applyReview(history, nextStatus, reviewReason, authentication);
             OcrHistory saved = ocrHistoryRepository.save(history);
             OcrHistory reloaded = ocrHistoryRepository.findByIdWithLicensePlate(saved.getId())
                     .orElseThrow(() -> new RuntimeException("Detectia foto nu exista."));
-            auditReview(authentication, nextStatus, reloaded.getLicensePlate().getPlateNumber(), "Foto OCR #" + reloaded.getId());
+            auditReview(
+                    authentication,
+                    nextStatus,
+                    reloaded.getLicensePlate().getPlateNumber(),
+                    reviewDetail("Foto OCR #" + reloaded.getId(), reviewReason)
+            );
             return ResponseEntity.ok(toPhotoDto(reloaded));
         }
 
@@ -109,7 +115,7 @@ public class DetectionReviewController {
                 throw new RuntimeException("Grupul video nu exista.");
             }
 
-            detections.forEach(detection -> applyReview(detection, nextStatus, authentication));
+            detections.forEach(detection -> applyReview(detection, nextStatus, reviewReason, authentication));
             videoDetectionRepository.saveAll(detections);
 
             List<VideoDetection> reloaded = videoDetectionRepository.findByJobIdAndPlateTextWithJob(sourceId, plateNumber);
@@ -117,7 +123,7 @@ public class DetectionReviewController {
                     authentication,
                     nextStatus,
                     plateNumber,
-                    "Video #" + sourceId + " - " + reloaded.size() + " aparitii"
+                    reviewDetail("Video #" + sourceId + " - " + reloaded.size() + " aparitii", reviewReason)
             );
             return ResponseEntity.ok(toVideoGroupDto(new VideoReviewGroup(sourceId, plateNumber, reloaded)));
         }
@@ -125,16 +131,18 @@ public class DetectionReviewController {
         throw new RuntimeException("Tip detectie necunoscut.");
     }
 
-    private void applyReview(OcrHistory history, DetectionReviewStatus status, Authentication authentication) {
+    private void applyReview(OcrHistory history, DetectionReviewStatus status, String reviewReason, Authentication authentication) {
         history.setReviewStatus(status);
         history.setReviewedBy(authentication.getName());
         history.setReviewedAt(LocalDateTime.now());
+        history.setReviewReason(reviewReason);
     }
 
-    private void applyReview(VideoDetection detection, DetectionReviewStatus status, Authentication authentication) {
+    private void applyReview(VideoDetection detection, DetectionReviewStatus status, String reviewReason, Authentication authentication) {
         detection.setReviewStatus(status);
         detection.setReviewedBy(authentication.getName());
         detection.setReviewedAt(LocalDateTime.now());
+        detection.setReviewReason(reviewReason);
     }
 
     private DetectionReviewStatus validateReviewStatus(DetectionReviewUpdateRequest request) {
@@ -142,6 +150,24 @@ public class DetectionReviewController {
             throw new RuntimeException("Status review lipsa.");
         }
         return request.status();
+    }
+
+    private String normalizeReviewReason(String reviewReason, DetectionReviewStatus status) {
+        String normalizedReason = reviewReason == null ? null : reviewReason.trim();
+        if (status == DetectionReviewStatus.REJECTED && (normalizedReason == null || normalizedReason.isBlank())) {
+            throw new RuntimeException("Motivul respingerii este obligatoriu.");
+        }
+        if (normalizedReason == null || normalizedReason.isBlank()) {
+            return null;
+        }
+        return normalizedReason.length() > 500 ? normalizedReason.substring(0, 500) : normalizedReason;
+    }
+
+    private String reviewDetail(String baseDetail, String reviewReason) {
+        if (reviewReason == null || reviewReason.isBlank()) {
+            return baseDetail;
+        }
+        return baseDetail + " | Motiv: " + reviewReason;
     }
 
     private void auditReview(Authentication authentication, DetectionReviewStatus status, String plateNumber, String detail) {
@@ -171,7 +197,8 @@ public class DetectionReviewController {
                 detail,
                 normalizeStatus(history.getReviewStatus()),
                 history.getReviewedBy(),
-                history.getReviewedAt()
+                history.getReviewedAt(),
+                history.getReviewReason()
         );
     }
 
@@ -227,6 +254,13 @@ public class DetectionReviewController {
                 .max(LocalDateTime::compareTo)
                 .orElse(null);
 
+        String reviewReason = group.detections().stream()
+                .map(VideoDetection::getReviewReason)
+                .filter(Objects::nonNull)
+                .filter(reason -> !reason.isBlank())
+                .findFirst()
+                .orElse(null);
+
         return new DetectionReviewItemDto(
                 "video",
                 group.jobId(),
@@ -238,7 +272,8 @@ public class DetectionReviewController {
                 detail,
                 normalizeStatus(representative.getReviewStatus()),
                 reviewedBy,
-                reviewedAt
+                reviewedAt,
+                reviewReason
         );
     }
 

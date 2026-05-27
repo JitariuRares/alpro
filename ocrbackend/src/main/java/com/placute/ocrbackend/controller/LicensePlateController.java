@@ -255,7 +255,10 @@ public class LicensePlateController {
                     addTextCell(detectionTable, formatDateTime(history.getProcessedAt()), tableFont);
                     addTextCell(detectionTable, formatConfidence(history.getConfidence()), tableFont);
                     addTextCell(detectionTable,
-                            history.getReviewStatus() != null ? history.getReviewStatus().name() : "DE_REVIEW",
+                            reviewStatusLabel(
+                                    history.getReviewStatus() != null ? history.getReviewStatus().name() : "DE_REVIEW",
+                                    history.getReviewReason()
+                            ),
                             tableFont
                     );
                     addTextCell(detectionTable, safe(history.getFilename()), tableFont);
@@ -284,7 +287,10 @@ public class LicensePlateController {
                     addTextCell(videoTable, formatVideoTimestamp(detection.getTimestampMs()), tableFont);
                     addTextCell(videoTable, formatConfidence(detection.getConfidence()), tableFont);
                     addTextCell(videoTable,
-                            detection.getReviewStatus() != null ? detection.getReviewStatus().name() : "DE_REVIEW",
+                            reviewStatusLabel(
+                                    detection.getReviewStatus() != null ? detection.getReviewStatus().name() : "DE_REVIEW",
+                                    detection.getReviewReason()
+                            ),
                             tableFont
                     );
                     addTextCell(videoTable,
@@ -424,6 +430,13 @@ public class LicensePlateController {
             return "-";
         }
         return "x=" + x + ", y=" + y + ", w=" + w + ", h=" + h;
+    }
+
+    private String reviewStatusLabel(String status, String reason) {
+        if (reason == null || reason.isBlank()) {
+            return status;
+        }
+        return status + " - " + reason;
     }
 
     private Image loadImageForPdf(String imagePath) throws IOException, BadElementException {

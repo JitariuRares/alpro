@@ -45,7 +45,8 @@ public class OcrHistoryController {
                             bboxDto,
                             h.getReviewStatus(),
                             h.getReviewedBy(),
-                            h.getReviewedAt()
+                            h.getReviewedAt(),
+                            h.getReviewReason()
                     );
                 })
                 .collect(Collectors.toList());
@@ -80,7 +81,8 @@ public class OcrHistoryController {
                             bboxDto,
                             h.getReviewStatus(),
                             h.getReviewedBy(),
-                            h.getReviewedAt()
+                            h.getReviewedAt(),
+                            h.getReviewReason()
                     );
                 })
                 .collect(Collectors.toList());

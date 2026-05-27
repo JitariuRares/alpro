@@ -33,6 +33,8 @@ function DetectiiReviewPanel() {
   const [statusFilter, setStatusFilter] = useState('DE_REVIEW');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [plateFilter, setPlateFilter] = useState('');
+  const [rejectingKey, setRejectingKey] = useState('');
+  const [reviewReason, setReviewReason] = useState('');
 
   const authHeader = useMemo(() => ({
     Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
@@ -110,17 +112,23 @@ function DetectiiReviewPanel() {
   const confirmedCount = visibleItems.filter((item) => statusFor(item) === 'CONFIRMED').length;
   const rejectedCount = visibleItems.filter((item) => statusFor(item) === 'REJECTED').length;
 
-  const setItemStatus = async (item, status) => {
+  const setItemStatus = async (item, status, reason = '') => {
     setError('');
 
     try {
+      const normalizedReason = reason.trim();
+      if (status === 'REJECTED' && !normalizedReason) {
+        setError('Motivul respingerii este obligatoriu.');
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/detection-review/${item.sourceType}/${item.sourceId}`, {
         method: 'PATCH',
         headers: {
           ...authHeader,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status, plateNumber: item.plateNumber }),
+        body: JSON.stringify({ status, plateNumber: item.plateNumber, reviewReason: normalizedReason }),
       });
 
       if (!response.ok) {
@@ -139,9 +147,22 @@ function DetectiiReviewPanel() {
             : candidate
         ));
       });
+      setRejectingKey('');
+      setReviewReason('');
     } catch (err) {
       setError(err.message || 'Nu s-a putut actualiza statusul detectiei.');
     }
+  };
+
+  const startReject = (item) => {
+    setRejectingKey(reviewItemKey(item));
+    setReviewReason(item.reviewReason || '');
+    setError('');
+  };
+
+  const cancelReject = () => {
+    setRejectingKey('');
+    setReviewReason('');
   };
 
   const openVehicleCase = (plate) => {
@@ -211,8 +232,10 @@ function DetectiiReviewPanel() {
           <div className="review-list">
             {visibleItems.map((item) => {
               const status = statusFor(item);
+              const itemKey = reviewItemKey(item);
+              const isRejecting = rejectingKey === itemKey;
               return (
-                <article className={`review-item ${status === 'CONFIRMED' ? 'confirmed' : status === 'REJECTED' ? 'rejected' : 'review'}`} key={reviewItemKey(item)}>
+                <article className={`review-item ${status === 'CONFIRMED' ? 'confirmed' : status === 'REJECTED' ? 'rejected' : 'review'}`} key={itemKey}>
                   <div className="review-item-main">
                     <span className={`status-badge ${status === 'CONFIRMED' ? 'success' : status === 'REJECTED' ? 'danger' : 'warning'}`}>
                       {status === 'CONFIRMED' ? 'CONFIRMAT' : status === 'REJECTED' ? 'RESPINS' : 'DE REVIZUIT'}
@@ -228,19 +251,41 @@ function DetectiiReviewPanel() {
                     {item.reviewedBy && (
                       <span>Revizuit de {item.reviewedBy}</span>
                     )}
+                    {item.reviewReason && (
+                      <span className="review-reason">Motiv: {item.reviewReason}</span>
+                    )}
                     <span className={`review-source-pill ${item.sourceType}`}>{item.sourceType === 'video' ? 'VIDEO' : 'FOTO'}</span>
                   </div>
                   <div className="review-item-actions">
                     <button type="button" className="page-btn success-action" onClick={() => setItemStatus(item, 'CONFIRMED')}>
                       <FaCheck /> Confirma
                     </button>
-                    <button type="button" className="page-btn danger-action" onClick={() => setItemStatus(item, 'REJECTED')}>
+                    <button type="button" className="page-btn danger-action" onClick={() => startReject(item)}>
                       <FaTimes /> Respinge
                     </button>
                     <button type="button" className="page-btn" onClick={() => openVehicleCase(item.plateNumber)}>
                       <FaSearch /> Vehicul
                     </button>
                   </div>
+                  {isRejecting && (
+                    <div className="review-reject-panel">
+                      <textarea
+                        value={reviewReason}
+                        onChange={(event) => setReviewReason(event.target.value)}
+                        maxLength={500}
+                        placeholder="Motiv respingere"
+                      />
+                      <div className="review-reject-actions">
+                        <small>{reviewReason.trim().length}/500</small>
+                        <button type="button" className="page-btn" onClick={cancelReject}>
+                          Renunta
+                        </button>
+                        <button type="button" className="page-btn danger-action" onClick={() => setItemStatus(item, 'REJECTED', reviewReason)}>
+                          <FaTimes /> Respinge
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </article>
               );
             })}

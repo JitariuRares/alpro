@@ -193,7 +193,26 @@ public class VideoJobService {
                 detection.getReviewStatus(),
                 detection.getReviewedBy(),
                 detection.getReviewedAt(),
-                detection.getReviewReason()
+                detection.getReviewReason(),
+                buildVehicleAttributesDto(detection)
+        );
+    }
+
+    private com.placute.ocrbackend.dto.VehicleAttributesDto buildVehicleAttributesDto(VideoDetection detection) {
+        if (detection.getAiMakeSuggestion() == null
+                && detection.getAiModelSuggestion() == null
+                && detection.getAiColorSuggestion() == null
+                && detection.getAiBodyTypeSuggestion() == null) {
+            return null;
+        }
+
+        return new com.placute.ocrbackend.dto.VehicleAttributesDto(
+                detection.getAiMakeSuggestion(),
+                detection.getAiModelSuggestion(),
+                detection.getAiColorSuggestion(),
+                detection.getAiBodyTypeSuggestion(),
+                detection.getAiVehicleConfidence(),
+                detection.getAiVehicleReasoning()
         );
     }
 

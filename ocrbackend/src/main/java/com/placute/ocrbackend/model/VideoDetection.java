@@ -1,5 +1,6 @@
 package com.placute.ocrbackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -60,6 +61,35 @@ public class VideoDetection {
 
     @Column(name = "review_reason", length = 500)
     private String reviewReason;
+
+    @Column(name = "ai_make_suggestion")
+    private String aiMakeSuggestion;
+
+    @Column(name = "ai_model_suggestion")
+    private String aiModelSuggestion;
+
+    @Column(name = "ai_color_suggestion")
+    private String aiColorSuggestion;
+
+    @Column(name = "ai_body_type_suggestion")
+    private String aiBodyTypeSuggestion;
+
+    @Column(name = "ai_vehicle_confidence")
+    private Double aiVehicleConfidence;
+
+    @Column(name = "ai_vehicle_reasoning", length = 500)
+    private String aiVehicleReasoning;
+
+    @Column(name = "ai_vehicle_analyzed_at")
+    private LocalDateTime aiVehicleAnalyzedAt;
+
+    @Transient
+    @JsonIgnore
+    private String aiSourceImageBase64;
+
+    @Transient
+    @JsonIgnore
+    private String aiSourceImageMimeType;
 
     @PrePersist
     public void prePersist() {
@@ -182,5 +212,77 @@ public class VideoDetection {
 
     public void setReviewReason(String reviewReason) {
         this.reviewReason = reviewReason;
+    }
+
+    public String getAiMakeSuggestion() {
+        return aiMakeSuggestion;
+    }
+
+    public void setAiMakeSuggestion(String aiMakeSuggestion) {
+        this.aiMakeSuggestion = aiMakeSuggestion;
+    }
+
+    public String getAiModelSuggestion() {
+        return aiModelSuggestion;
+    }
+
+    public void setAiModelSuggestion(String aiModelSuggestion) {
+        this.aiModelSuggestion = aiModelSuggestion;
+    }
+
+    public String getAiColorSuggestion() {
+        return aiColorSuggestion;
+    }
+
+    public void setAiColorSuggestion(String aiColorSuggestion) {
+        this.aiColorSuggestion = aiColorSuggestion;
+    }
+
+    public String getAiBodyTypeSuggestion() {
+        return aiBodyTypeSuggestion;
+    }
+
+    public void setAiBodyTypeSuggestion(String aiBodyTypeSuggestion) {
+        this.aiBodyTypeSuggestion = aiBodyTypeSuggestion;
+    }
+
+    public Double getAiVehicleConfidence() {
+        return aiVehicleConfidence;
+    }
+
+    public void setAiVehicleConfidence(Double aiVehicleConfidence) {
+        this.aiVehicleConfidence = aiVehicleConfidence;
+    }
+
+    public String getAiVehicleReasoning() {
+        return aiVehicleReasoning;
+    }
+
+    public void setAiVehicleReasoning(String aiVehicleReasoning) {
+        this.aiVehicleReasoning = aiVehicleReasoning;
+    }
+
+    public LocalDateTime getAiVehicleAnalyzedAt() {
+        return aiVehicleAnalyzedAt;
+    }
+
+    public void setAiVehicleAnalyzedAt(LocalDateTime aiVehicleAnalyzedAt) {
+        this.aiVehicleAnalyzedAt = aiVehicleAnalyzedAt;
+    }
+
+    public String getAiSourceImageBase64() {
+        return aiSourceImageBase64;
+    }
+
+    public void setAiSourceImageBase64(String aiSourceImageBase64) {
+        this.aiSourceImageBase64 = aiSourceImageBase64;
+    }
+
+    public String getAiSourceImageMimeType() {
+        return aiSourceImageMimeType;
+    }
+
+    public void setAiSourceImageMimeType(String aiSourceImageMimeType) {
+        this.aiSourceImageMimeType = aiSourceImageMimeType;
     }
 }

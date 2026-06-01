@@ -14,10 +14,11 @@ public class OcrPlateDto {
     private String role;
     private Double confidence;
     private BboxDto bbox;
+    private VehicleAttributesDto aiAttributes;
 
     public OcrPlateDto(Long id, String plateNumber, String brand, String model, String owner,
                        String imagePath, LocalDateTime detectedAt, String user, String role,
-                       Double confidence, BboxDto bbox) {
+                       Double confidence, BboxDto bbox, VehicleAttributesDto aiAttributes) {
         this.id = id;
         this.plateNumber = plateNumber;
         this.brand = brand;
@@ -29,6 +30,7 @@ public class OcrPlateDto {
         this.role = role;
         this.confidence = confidence;
         this.bbox = bbox;
+        this.aiAttributes = aiAttributes;
     }
 
     public Long getId() { return id; }
@@ -42,6 +44,7 @@ public class OcrPlateDto {
     public String getRole() { return role; }
     public Double getConfidence() { return confidence; }
     public BboxDto getBbox() { return bbox; }
+    public VehicleAttributesDto getAiAttributes() { return aiAttributes; }
 
     public static class BboxDto {
         private Integer x;

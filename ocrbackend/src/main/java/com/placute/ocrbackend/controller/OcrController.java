@@ -1,6 +1,7 @@
 package com.placute.ocrbackend.controller;
 
 import com.placute.ocrbackend.dto.OcrPlateDto;
+import com.placute.ocrbackend.dto.VehicleAttributesDto;
 import com.placute.ocrbackend.model.LicensePlate;
 import com.placute.ocrbackend.repository.LicensePlateRepository;
 import com.placute.ocrbackend.service.OcrService;
@@ -79,7 +80,8 @@ public class OcrController {
                 lp.getUser() != null ? lp.getUser().getUsername() : null,
                 lp.getUser() != null ? lp.getUser().getRole().name() : null,
                 detection.confidence(),
-                bboxDto
+                bboxDto,
+                buildVehicleAttributesDto(lp)
         );
         return ResponseEntity.ok(dto);
     }
@@ -114,6 +116,24 @@ public class OcrController {
 
         file.transferTo(targetPath);
         return targetPath.toFile();
+    }
+
+    private VehicleAttributesDto buildVehicleAttributesDto(LicensePlate lp) {
+        if (lp.getAiMakeSuggestion() == null
+                && lp.getAiModelSuggestion() == null
+                && lp.getAiColorSuggestion() == null
+                && lp.getAiBodyTypeSuggestion() == null) {
+            return null;
+        }
+
+        return new VehicleAttributesDto(
+                lp.getAiMakeSuggestion(),
+                lp.getAiModelSuggestion(),
+                lp.getAiColorSuggestion(),
+                lp.getAiBodyTypeSuggestion(),
+                lp.getAiVehicleConfidence(),
+                lp.getAiVehicleReasoning()
+        );
     }
 
     private String resolveSuffix(String originalName) {

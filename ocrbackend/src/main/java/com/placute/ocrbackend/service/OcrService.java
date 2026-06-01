@@ -2,7 +2,9 @@ package com.placute.ocrbackend.service;
 
 import com.placute.ocrbackend.integration.MlAlprClient;
 import com.placute.ocrbackend.integration.OpenAIOcrService;
+import com.placute.ocrbackend.integration.OpenAIVehicleAttributeService;
 import com.placute.ocrbackend.integration.dto.MlAlprResult;
+import com.placute.ocrbackend.dto.VehicleAttributesDto;
 import com.placute.ocrbackend.model.LicensePlate;
 import com.placute.ocrbackend.model.OcrHistory;
 import com.placute.ocrbackend.repository.LicensePlateRepository;
@@ -40,6 +42,9 @@ public class OcrService {
     @Autowired
     private MlAlprClient mlAlprClient;
 
+    @Autowired
+    private OpenAIVehicleAttributeService vehicleAttributeService;
+
     @Value("${alpr.fallback.openai.enabled:false}")
     private boolean openAiFallbackEnabled;
 
@@ -73,6 +78,7 @@ public class OcrService {
             }
 
             LicensePlate savedPlate = savePlate(detection, imageFile);
+            enrichVehicleAttributes(savedPlate, imageFile);
             return new OcrDetectionResult(
                     savedPlate,
                     detection.confidence(),
@@ -217,6 +223,27 @@ public class OcrService {
         historyRepository.save(history);
 
         return saved;
+    }
+
+    private void enrichVehicleAttributes(LicensePlate licensePlate, File imageFile) {
+        try {
+            Optional<VehicleAttributesDto> attributes = vehicleAttributeService.analyze(imageFile);
+            if (attributes.isEmpty()) {
+                return;
+            }
+
+            VehicleAttributesDto dto = attributes.get();
+            licensePlate.setAiMakeSuggestion(dto.getMake());
+            licensePlate.setAiModelSuggestion(dto.getModel());
+            licensePlate.setAiColorSuggestion(dto.getColor());
+            licensePlate.setAiBodyTypeSuggestion(dto.getBodyType());
+            licensePlate.setAiVehicleConfidence(dto.getConfidence());
+            licensePlate.setAiVehicleReasoning(dto.getReasoning());
+            licensePlate.setAiVehicleAnalyzedAt(LocalDateTime.now());
+            plateRepository.save(licensePlate);
+        } catch (Exception e) {
+            System.out.println("Analiza AI a vehiculului a fost omisa: " + e.getMessage());
+        }
     }
 
     private String computeSha256(File file) {

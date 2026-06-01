@@ -65,6 +65,8 @@ public class MlAlprVideoResult {
         private final String plateText;
         private final Double confidence;
         private final Bbox bbox;
+        private final String vehicleImageBase64;
+        private final String vehicleImageMimeType;
 
         public Detection(
                 Integer frameIndex,
@@ -72,7 +74,9 @@ public class MlAlprVideoResult {
                 Integer trackId,
                 String plateText,
                 Double confidence,
-                Bbox bbox
+                Bbox bbox,
+                String vehicleImageBase64,
+                String vehicleImageMimeType
         ) {
             this.frameIndex = frameIndex;
             this.timestampMs = timestampMs;
@@ -80,6 +84,8 @@ public class MlAlprVideoResult {
             this.plateText = plateText;
             this.confidence = confidence;
             this.bbox = bbox;
+            this.vehicleImageBase64 = vehicleImageBase64;
+            this.vehicleImageMimeType = vehicleImageMimeType;
         }
 
         public Integer getFrameIndex() {
@@ -104,6 +110,14 @@ public class MlAlprVideoResult {
 
         public Bbox getBbox() {
             return bbox;
+        }
+
+        public String getVehicleImageBase64() {
+            return vehicleImageBase64;
+        }
+
+        public String getVehicleImageMimeType() {
+            return vehicleImageMimeType;
         }
     }
 

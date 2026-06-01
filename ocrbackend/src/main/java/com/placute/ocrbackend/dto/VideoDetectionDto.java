@@ -17,6 +17,7 @@ public class VideoDetectionDto {
     private String reviewedBy;
     private LocalDateTime reviewedAt;
     private String reviewReason;
+    private VehicleAttributesDto aiAttributes;
 
     public VideoDetectionDto(
             Long id,
@@ -29,7 +30,8 @@ public class VideoDetectionDto {
             DetectionReviewStatus reviewStatus,
             String reviewedBy,
             LocalDateTime reviewedAt,
-            String reviewReason
+            String reviewReason,
+            VehicleAttributesDto aiAttributes
     ) {
         this.id = id;
         this.frameIndex = frameIndex;
@@ -42,6 +44,7 @@ public class VideoDetectionDto {
         this.reviewedBy = reviewedBy;
         this.reviewedAt = reviewedAt;
         this.reviewReason = reviewReason;
+        this.aiAttributes = aiAttributes;
     }
 
     public Long getId() {
@@ -86,6 +89,10 @@ public class VideoDetectionDto {
 
     public String getReviewReason() {
         return reviewReason;
+    }
+
+    public VehicleAttributesDto getAiAttributes() {
+        return aiAttributes;
     }
 
     public static class BboxDto {

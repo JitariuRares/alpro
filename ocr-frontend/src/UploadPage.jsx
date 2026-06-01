@@ -13,6 +13,7 @@ function UploadPage() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [editData, setEditData] = useState({ brand: '', model: '', owner: '' });
+  const [uploading, setUploading] = useState(false);
   const imgRef = useRef(null);
 
   useEffect(() => {
@@ -85,6 +86,9 @@ function UploadPage() {
     }
 
     try {
+      setUploading(true);
+      setError('');
+      setSuccessMessage('');
       const formData = new FormData();
       formData.append('image', selectedFile, selectedFile.name);
 
@@ -103,10 +107,10 @@ function UploadPage() {
       const data = await response.json();
       setCarData(data);
       setEditData({ brand: data.brand || '', model: data.model || '', owner: data.owner || '' });
-      setError('');
-      setSuccessMessage('');
     } catch (err) {
       setError(friendlyErrorMessage(err.message, 'Nu s-a putut procesa imaginea.'));
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -176,6 +180,7 @@ function UploadPage() {
         ...updated,
         confidence: prev?.confidence ?? null,
         bbox: prev?.bbox ?? null,
+        aiAttributes: prev?.aiAttributes ?? null,
       }));
       setSuccessMessage('Detaliile au fost actualizate cu succes!');
       setError('');
@@ -191,9 +196,27 @@ function UploadPage() {
     navigate(`/search?plate=${encodeURIComponent(carData.plateNumber)}`);
   };
 
+  const handleApplyAiSuggestion = () => {
+    if (!carData?.aiAttributes) {
+      return;
+    }
+
+    setEditData((prev) => ({
+      ...prev,
+      brand: carData.aiAttributes.make || prev.brand,
+      model: carData.aiAttributes.model || prev.model,
+    }));
+    setSuccessMessage('Sugestia AI a fost copiata in campurile editabile. Poti ajusta si salva.');
+    setError('');
+  };
+
   const overlayStyle = getOverlayStyle();
   const confidencePercent = carData?.confidence != null
     ? `${(carData.confidence * 100).toFixed(1)}%`
+    : null;
+  const aiAttributes = carData?.aiAttributes;
+  const aiConfidencePercent = aiAttributes?.confidence != null
+    ? `${(aiAttributes.confidence * 100).toFixed(0)}%`
     : null;
 
   return (
@@ -226,7 +249,9 @@ function UploadPage() {
         </label>
 
         {previewUrl && (
-          <button onClick={handleUpload} className="primary-btn">Trimite imaginea</button>
+          <button onClick={handleUpload} className="primary-btn" disabled={uploading}>
+            {uploading ? 'Analizez imaginea...' : 'Trimite imaginea'}
+          </button>
         )}
       </div>
 
@@ -242,6 +267,33 @@ function UploadPage() {
             <button onClick={handleLookupVehicle} className="primary-btn mt-2">
               Cauta date vehicul
             </button>
+
+            {aiAttributes && (
+              <div className="ai-vehicle-card">
+                <div className="ai-vehicle-header">
+                  <span className="ai-vehicle-badge">Sugestie AI</span>
+                  {aiConfidencePercent && <span className="ai-vehicle-confidence">{aiConfidencePercent}</span>}
+                </div>
+                <p>
+                  <strong>Marca / model:</strong>{' '}
+                  {[aiAttributes.make, aiAttributes.model].filter(Boolean).join(' ') || 'Necunoscut'}
+                </p>
+                <p>
+                  <strong>Culoare:</strong> {aiAttributes.color || 'Necunoscuta'}
+                </p>
+                <p>
+                  <strong>Caroserie:</strong> {aiAttributes.bodyType || 'Necunoscuta'}
+                </p>
+                {aiAttributes.reasoning && (
+                  <p className="ai-vehicle-reasoning">{aiAttributes.reasoning}</p>
+                )}
+                {(aiAttributes.make || aiAttributes.model) && (
+                  <button onClick={handleApplyAiSuggestion} className="secondary-btn">
+                    Aplica marca/model
+                  </button>
+                )}
+              </div>
+            )}
 
             <label className="label">Marca:</label>
             <input type="text" name="brand" value={editData.brand} onChange={handleEditChange} className="input" />

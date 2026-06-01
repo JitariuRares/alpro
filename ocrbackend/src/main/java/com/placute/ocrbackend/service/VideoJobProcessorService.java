@@ -1,5 +1,7 @@
 package com.placute.ocrbackend.service;
 
+import com.placute.ocrbackend.dto.VehicleAttributesDto;
+import com.placute.ocrbackend.integration.OpenAIVehicleAttributeService;
 import com.placute.ocrbackend.integration.MlAlprClient;
 import com.placute.ocrbackend.integration.dto.MlAlprVideoResult;
 import com.placute.ocrbackend.model.VideoDetection;
@@ -15,9 +17,11 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class VideoJobProcessorService {
@@ -31,11 +35,17 @@ public class VideoJobProcessorService {
     @Autowired
     private MlAlprClient mlAlprClient;
 
+    @Autowired
+    private OpenAIVehicleAttributeService vehicleAttributeService;
+
     @Value("${alpr.video.min-confidence:0.70}")
     private double minConfidence;
 
     @Value("${alpr.video.min-frame-gap-per-track:12}")
     private int minFrameGapPerTrack;
+
+    @Value("${openai.vehicle-attributes.video.max-calls-per-job:5}")
+    private int maxVehicleAttributeCallsPerJob;
 
     @Async
     public void processJobAsync(Long jobId, Integer frameStep, Integer maxFrames) {
@@ -60,6 +70,7 @@ public class VideoJobProcessorService {
 
             videoDetectionRepository.deleteByJob_Id(jobId);
             List<VideoDetection> detections = mapDetections(mlResult, job);
+            enrichVideoDetections(detections);
             if (!detections.isEmpty()) {
                 videoDetectionRepository.saveAll(detections);
             }
@@ -112,6 +123,8 @@ public class VideoJobProcessorService {
                 detection.setBboxW(mlDetection.getBbox().getW());
                 detection.setBboxH(mlDetection.getBbox().getH());
             }
+            detection.setAiSourceImageBase64(mlDetection.getVehicleImageBase64());
+            detection.setAiSourceImageMimeType(mlDetection.getVehicleImageMimeType());
 
             Integer trackId = detection.getTrackId();
             if (trackId != null) {
@@ -126,6 +139,72 @@ public class VideoJobProcessorService {
         }
 
         return mapped;
+    }
+
+    private void enrichVideoDetections(List<VideoDetection> detections) {
+        if (detections == null || detections.isEmpty() || maxVehicleAttributeCallsPerJob <= 0) {
+            return;
+        }
+
+        Map<String, VideoDetection> representatives = new LinkedHashMap<>();
+        for (VideoDetection detection : detections) {
+            if (detection.getAiSourceImageBase64() == null || detection.getAiSourceImageBase64().isBlank()) {
+                continue;
+            }
+
+            String key = aiGroupKey(detection);
+            VideoDetection current = representatives.get(key);
+            if (current == null || confidenceOf(detection) > confidenceOf(current)) {
+                representatives.put(key, detection);
+            }
+        }
+
+        int calls = 0;
+        for (Map.Entry<String, VideoDetection> entry : representatives.entrySet()) {
+            if (calls >= maxVehicleAttributeCallsPerJob) {
+                break;
+            }
+
+            VideoDetection representative = entry.getValue();
+            try {
+                Optional<VehicleAttributesDto> attributes = vehicleAttributeService.analyzeBase64Image(
+                        representative.getAiSourceImageBase64(),
+                        representative.getAiSourceImageMimeType()
+                );
+                calls++;
+                attributes.ifPresent(dto -> applyAttributesToGroup(detections, entry.getKey(), dto));
+            } catch (Exception e) {
+                System.out.println("Analiza AI video a fost omisa pentru " + representative.getPlateText() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    private void applyAttributesToGroup(List<VideoDetection> detections, String groupKey, VehicleAttributesDto dto) {
+        LocalDateTime analyzedAt = LocalDateTime.now();
+        for (VideoDetection detection : detections) {
+            if (!groupKey.equals(aiGroupKey(detection))) {
+                continue;
+            }
+
+            detection.setAiMakeSuggestion(dto.getMake());
+            detection.setAiModelSuggestion(dto.getModel());
+            detection.setAiColorSuggestion(dto.getColor());
+            detection.setAiBodyTypeSuggestion(dto.getBodyType());
+            detection.setAiVehicleConfidence(dto.getConfidence());
+            detection.setAiVehicleReasoning(dto.getReasoning());
+            detection.setAiVehicleAnalyzedAt(analyzedAt);
+        }
+    }
+
+    private String aiGroupKey(VideoDetection detection) {
+        if (detection.getTrackId() != null) {
+            return "track:" + detection.getTrackId();
+        }
+        return "plate:" + detection.getPlateText();
+    }
+
+    private double confidenceOf(VideoDetection detection) {
+        return detection.getConfidence() != null ? detection.getConfidence() : 0.0;
     }
 
     private boolean shouldSkipAsDuplicate(VideoDetection previous, VideoDetection current) {

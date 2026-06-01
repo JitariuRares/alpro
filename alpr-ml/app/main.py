@@ -1,4 +1,5 @@
 import io
+import base64
 import math
 import os
 import re
@@ -139,6 +140,8 @@ class AlprPipeline:
             0.0, min(1.0, float(os.getenv("VIDEO_REUSE_BBOX_IOU_THRESHOLD", "0.85")))
         )
         self.video_text_stability_min_hits = max(1, int(os.getenv("VIDEO_TEXT_STABILITY_MIN_HITS", "2")))
+        self.video_emit_vehicle_image = os.getenv("VIDEO_EMIT_VEHICLE_IMAGE", "true").lower() == "true"
+        self.video_vehicle_context_max_dim = max(320, int(os.getenv("VIDEO_VEHICLE_CONTEXT_MAX_DIM", "768")))
 
         self._load_detector()
         self._load_ocr()
@@ -243,6 +246,7 @@ class AlprPipeline:
             track_text_scores: Dict[int, Dict[str, float]] = {}
             track_text_hits: Dict[int, Dict[str, int]] = {}
             track_last_emitted: Dict[int, Tuple[int, str]] = {}
+            track_vehicle_images: Dict[int, dict] = {}
             next_track_id = 1
             frame_index = -1
             sampled_frames = 0
@@ -308,6 +312,14 @@ class AlprPipeline:
                             text_scores[ocr_text] = text_scores.get(ocr_text, 0.0) + ocr_combined_confidence
                             text_hits[ocr_text] = text_hits.get(ocr_text, 0) + 1
                             matched_track.plate_text = max(text_scores.items(), key=lambda entry: entry[1])[0]
+                            self._update_track_vehicle_image(
+                                track_vehicle_images,
+                                track_id,
+                                frame,
+                                matched_track.bbox,
+                                ocr_combined_confidence,
+                                frame_index,
+                            )
 
                     stable_plate = matched_track.plate_text
                     if not stable_plate:
@@ -328,6 +340,7 @@ class AlprPipeline:
                     ):
                         continue
 
+                    vehicle_image = track_vehicle_images.get(track_id, {})
                     detections.append(
                         {
                             "frameIndex": frame_index,
@@ -336,6 +349,8 @@ class AlprPipeline:
                             "plateText": stable_plate,
                             "confidence": round(matched_track.last_ocr_confidence, 4),
                             "bbox": dict(matched_track.bbox),
+                            "vehicleImageBase64": vehicle_image.get("imageBase64"),
+                            "vehicleImageMimeType": vehicle_image.get("mimeType"),
                         }
                     )
                     track_last_emitted[track_id] = (frame_index, stable_plate)
@@ -428,6 +443,70 @@ class AlprPipeline:
         if x >= x2 or y >= y2:
             return None
         return image[y:y2, x:x2]
+
+    def _update_track_vehicle_image(
+        self,
+        track_vehicle_images: Dict[int, dict],
+        track_id: int,
+        frame: np.ndarray,
+        plate_bbox: dict,
+        confidence: float,
+        frame_index: int,
+    ) -> None:
+        if not self.video_emit_vehicle_image:
+            return
+
+        existing = track_vehicle_images.get(track_id)
+        if existing is not None and existing.get("confidence", 0.0) >= confidence:
+            return
+
+        vehicle_crop = self._crop_vehicle_context(frame, plate_bbox)
+        encoded = self._encode_jpeg_base64(vehicle_crop)
+        if encoded is None:
+            return
+
+        track_vehicle_images[track_id] = {
+            "imageBase64": encoded,
+            "mimeType": "image/jpeg",
+            "confidence": confidence,
+            "frameIndex": frame_index,
+        }
+
+    def _crop_vehicle_context(self, image: np.ndarray, plate_bbox: dict) -> np.ndarray:
+        frame_h, frame_w = image.shape[:2]
+        x, y, w, h = plate_bbox["x"], plate_bbox["y"], plate_bbox["w"], plate_bbox["h"]
+
+        center_x = x + (w / 2)
+        crop_w = max(w * 8, frame_w * 0.28)
+        crop_h = max(h * 9, frame_h * 0.30)
+
+        x1 = int(max(0, center_x - crop_w / 2))
+        x2 = int(min(frame_w, center_x + crop_w / 2))
+        y1 = int(max(0, y - crop_h * 0.60))
+        y2 = int(min(frame_h, y + h + crop_h * 0.40))
+
+        if x2 <= x1 or y2 <= y1:
+            return image
+        return image[y1:y2, x1:x2]
+
+    def _encode_jpeg_base64(self, image: np.ndarray) -> Optional[str]:
+        if image is None or image.size == 0:
+            return None
+
+        height, width = image.shape[:2]
+        max_dim = max(height, width)
+        if max_dim > self.video_vehicle_context_max_dim:
+            scale = self.video_vehicle_context_max_dim / max_dim
+            image = cv2.resize(
+                image,
+                (max(1, int(width * scale)), max(1, int(height * scale))),
+                interpolation=cv2.INTER_AREA,
+            )
+
+        ok, buffer = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), 78])
+        if not ok:
+            return None
+        return base64.b64encode(buffer).decode("ascii")
 
     def _read_with_paddle(self, crop: np.ndarray) -> tuple[str, float]:
         result = self.ocr.ocr(crop, cls=False)

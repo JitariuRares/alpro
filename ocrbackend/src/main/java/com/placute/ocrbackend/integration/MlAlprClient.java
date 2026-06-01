@@ -188,7 +188,9 @@ public class MlAlprClient {
                     readOptionalInt(item, "trackId"),
                     item.optString("plateText", null),
                     readOptionalDouble(item, "confidence"),
-                    readVideoBbox(item.optJSONObject("bbox"))
+                    readVideoBbox(item.optJSONObject("bbox")),
+                    item.optString("vehicleImageBase64", null),
+                    item.optString("vehicleImageMimeType", null)
             ));
         }
         return detections;

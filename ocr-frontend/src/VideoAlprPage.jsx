@@ -400,11 +400,13 @@ function VideoAlprPage() {
       }
 
       if (moments.length > 0) {
+        const aiAttributes = detections.find((detection) => detection.aiAttributes)?.aiAttributes || null;
         summaries.push({
           plateText,
           firstTimestampMs: moments[0]._timestampMs,
           firstDetection: moments[0],
           moments,
+          aiAttributes,
         });
       }
     }
@@ -620,6 +622,7 @@ function VideoAlprPage() {
               <thead>
                 <tr>
                   <th>Placuta</th>
+                  <th>AI vehicul</th>
                   <th>Momente detectie</th>
                   <th>Lookup</th>
                 </tr>
@@ -632,6 +635,21 @@ function VideoAlprPage() {
                     onClick={() => jumpToDetection(item.firstDetection)}
                   >
                     <td>{item.plateText}</td>
+                    <td>
+                      {item.aiAttributes ? (
+                        <div className="video-ai-summary">
+                          <span className="video-ai-badge">AI</span>
+                          <strong>
+                            {[item.aiAttributes.make, item.aiAttributes.model].filter(Boolean).join(' ') || 'Necunoscut'}
+                          </strong>
+                          <small>
+                            {[item.aiAttributes.color, item.aiAttributes.bodyType].filter(Boolean).join(' / ') || 'atribute partiale'}
+                          </small>
+                        </div>
+                      ) : (
+                        <span className="video-muted">-</span>
+                      )}
+                    </td>
                     <td>
                       <div className="video-moment-list">
                         {item.moments.map((moment) => (

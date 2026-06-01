@@ -10,6 +10,7 @@ import VehiculePage from './VehiculePage';
 import ParcarePage from './ParcarePage';
 import AsigurariPage from './AsigurariPage';
 import AuditPage from './AuditPage';
+import CopilotWidget from './CopilotWidget';
 import {
   ROLE_INSURANCE,
   ROLE_PARKING,
@@ -112,6 +113,7 @@ function App() {
             />
           </Routes>
         </main>
+        <CopilotWidget />
         <footer className="app-footer">
           ALPRo 2025 - versiune operationala
         </footer>

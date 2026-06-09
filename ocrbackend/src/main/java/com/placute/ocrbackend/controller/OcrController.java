@@ -72,6 +72,7 @@ public class OcrController {
         OcrPlateDto dto = new OcrPlateDto(
                 lp.getId(),
                 lp.getPlateNumber(),
+                lp.getPlateType(),
                 lp.getBrand(),
                 lp.getModel(),
                 lp.getOwner(),

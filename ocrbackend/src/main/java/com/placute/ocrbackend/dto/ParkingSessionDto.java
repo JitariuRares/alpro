@@ -8,6 +8,7 @@ public class ParkingSessionDto {
 
     private Long id;
     private String plateNumber;
+    private String parkingZone;
     private LocalDateTime entryTime;
     private LocalDateTime exitTime;
     private ParkingSessionStatus status;
@@ -18,6 +19,7 @@ public class ParkingSessionDto {
     public ParkingSessionDto(
             Long id,
             String plateNumber,
+            String parkingZone,
             LocalDateTime entryTime,
             LocalDateTime exitTime,
             ParkingSessionStatus status,
@@ -27,6 +29,7 @@ public class ParkingSessionDto {
     ) {
         this.id = id;
         this.plateNumber = plateNumber;
+        this.parkingZone = parkingZone;
         this.entryTime = entryTime;
         this.exitTime = exitTime;
         this.status = status;
@@ -41,6 +44,10 @@ public class ParkingSessionDto {
 
     public String getPlateNumber() {
         return plateNumber;
+    }
+
+    public String getParkingZone() {
+        return parkingZone;
     }
 
     public LocalDateTime getEntryTime() {

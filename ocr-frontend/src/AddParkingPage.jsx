@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { API_BASE_URL } from './config';
 import { readApiError, friendlyErrorMessage } from './errorMessages';
 
+const PARKING_ZONES = ['Zona 1', 'Zona 2', 'Zona 3', 'Zona 4'];
+
 function AddParkingPage() {
   const [entryPlateNumber, setEntryPlateNumber] = useState('');
+  const [entryParkingZone, setEntryParkingZone] = useState('Zona 1');
   const [entryTime, setEntryTime] = useState('');
   const [entryImage, setEntryImage] = useState(null);
 
@@ -36,6 +39,10 @@ function AddParkingPage() {
       setError('Numarul placutei este obligatoriu pentru ENTRY.');
       return;
     }
+    if (!entryParkingZone.trim()) {
+      setError('Zona de parcare este obligatorie pentru ENTRY.');
+      return;
+    }
     if (!entryImage) {
       setError('Dovada foto pentru ENTRY este obligatorie.');
       return;
@@ -45,6 +52,7 @@ function AddParkingPage() {
     try {
       const formData = new FormData();
       formData.append('plateNumber', entryPlateNumber.trim().toUpperCase());
+      formData.append('parkingZone', entryParkingZone.trim());
       const isoEntryTime = toLocalDateTimeParam(entryTime);
       if (isoEntryTime) {
         formData.append('entryTime', isoEntryTime);
@@ -66,6 +74,7 @@ function AddParkingPage() {
       const data = await response.json();
       setSuccessData({ type: 'ENTRY', payload: data });
       setEntryPlateNumber('');
+      setEntryParkingZone('Zona 1');
       setEntryTime('');
       setEntryImage(null);
       const entryInput = document.getElementById('parking-entry-image-input');
@@ -144,6 +153,16 @@ function AddParkingPage() {
             className="search-input"
             required
           />
+          <select
+            value={entryParkingZone}
+            onChange={(e) => setEntryParkingZone(e.target.value)}
+            className="search-input"
+            required
+          >
+            {PARKING_ZONES.map((zone) => (
+              <option key={zone} value={zone}>{zone}</option>
+            ))}
+          </select>
           <input
             type="datetime-local"
             value={entryTime}
@@ -199,6 +218,7 @@ function AddParkingPage() {
         <div className="alert alert-success mt-4">
           Operatie {successData.type} salvata cu succes. Sesiune #{successData.payload?.id}
           {' '}({successData.payload?.status || '-'})
+          {successData.payload?.parkingZone ? ` - ${successData.payload.parkingZone}` : ''}
         </div>
       )}
 

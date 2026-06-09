@@ -189,12 +189,6 @@ public class LicensePlateController {
             addInfoRow(vehicleTable, "Model", safe(plate.getModel()), labelFont, textFont);
             addInfoRow(vehicleTable, "Proprietar", safe(plate.getOwner()), labelFont, textFont);
             addInfoRow(vehicleTable, "Detectat la", formatDateTime(plate.getDetectedAt()), labelFont, textFont);
-            addInfoRow(vehicleTable, "Incredere detectie", formatConfidence(plate.getConfidence()), labelFont, textFont);
-            addInfoRow(vehicleTable, "Bounding box",
-                    bboxText(plate.getBboxX(), plate.getBboxY(), plate.getBboxW(), plate.getBboxH()),
-                    labelFont,
-                    textFont
-            );
             document.add(vehicleTable);
 
             addSectionTitle(document, "Asigurari", sectionTitleFont);
@@ -223,14 +217,15 @@ public class LicensePlateController {
             if (parking.isEmpty()) {
                 document.add(new Paragraph("Nu exista sesiuni de parcare pentru aceasta placuta.", emptyFont));
             } else {
-                PdfPTable parkingTable = new PdfPTable(new float[]{1.8f, 1.8f, 1.2f});
+                PdfPTable parkingTable = new PdfPTable(new float[]{1.2f, 1.8f, 1.8f, 1.2f});
                 parkingTable.setWidthPercentage(100);
                 parkingTable.setSpacingBefore(5);
                 parkingTable.setSpacingAfter(15);
 
-                addHeaderCells(parkingTable, tableHeaderFont, "Intrare", "Iesire", "Status");
+                addHeaderCells(parkingTable, tableHeaderFont, "Zona", "Intrare", "Iesire", "Status");
 
                 for (ParkingHistory p : parking) {
+                    addTextCell(parkingTable, safe(p.getParkingZone()), tableFont);
                     addTextCell(parkingTable, formatDateTime(p.getEntryTime()), tableFont);
                     addTextCell(parkingTable, formatDateTime(p.getExitTime()), tableFont);
                     addTextCell(parkingTable, p.getStatus() != null ? p.getStatus().name() : "-", tableFont);
@@ -244,16 +239,15 @@ public class LicensePlateController {
             if (ocrDetections.isEmpty()) {
                 document.add(new Paragraph("Nu exista detectii imagine pentru aceasta placuta.", emptyFont));
             } else {
-                PdfPTable detectionTable = new PdfPTable(new float[]{1.5f, 1.2f, 1.2f, 1.6f});
+                PdfPTable detectionTable = new PdfPTable(new float[]{1.5f, 1.2f, 1.6f});
                 detectionTable.setWidthPercentage(100);
                 detectionTable.setSpacingBefore(5);
                 detectionTable.setSpacingAfter(15);
 
-                addHeaderCells(detectionTable, tableHeaderFont, "Procesat la", "Incredere", "Review", "Fisier");
+                addHeaderCells(detectionTable, tableHeaderFont, "Procesat la", "Review", "Fisier");
 
                 for (OcrHistory history : ocrDetections) {
                     addTextCell(detectionTable, formatDateTime(history.getProcessedAt()), tableFont);
-                    addTextCell(detectionTable, formatConfidence(history.getConfidence()), tableFont);
                     addTextCell(detectionTable,
                             reviewStatusLabel(
                                     history.getReviewStatus() != null ? history.getReviewStatus().name() : "DE_REVIEW",
@@ -272,12 +266,12 @@ public class LicensePlateController {
             if (videoDetections.isEmpty()) {
                 document.add(new Paragraph("Nu exista detectii video pentru aceasta placuta.", emptyFont));
             } else {
-                PdfPTable videoTable = new PdfPTable(new float[]{1f, 1.1f, 1.2f, 1.2f, 1.4f});
+                PdfPTable videoTable = new PdfPTable(new float[]{1f, 1.1f, 1.2f, 1.4f});
                 videoTable.setWidthPercentage(100);
                 videoTable.setSpacingBefore(5);
                 videoTable.setSpacingAfter(15);
 
-                addHeaderCells(videoTable, tableHeaderFont, "Frame", "Timp video", "Incredere", "Review", "Track");
+                addHeaderCells(videoTable, tableHeaderFont, "Frame", "Timp video", "Review", "Track");
 
                 for (VideoDetection detection : videoDetections) {
                     addTextCell(videoTable,
@@ -285,7 +279,6 @@ public class LicensePlateController {
                             tableFont
                     );
                     addTextCell(videoTable, formatVideoTimestamp(detection.getTimestampMs()), tableFont);
-                    addTextCell(videoTable, formatConfidence(detection.getConfidence()), tableFont);
                     addTextCell(videoTable,
                             reviewStatusLabel(
                                     detection.getReviewStatus() != null ? detection.getReviewStatus().name() : "DE_REVIEW",
@@ -317,8 +310,8 @@ public class LicensePlateController {
                 for (var event : auditEvents) {
                     addTextCell(auditTable, formatDateTime(event.getCreatedAt()), tableFont);
                     addTextCell(auditTable, safe(event.getActorUsername()), tableFont);
-                    addTextCell(auditTable, safe(event.getAction()), tableFont);
-                    addTextCell(auditTable, safe(event.getDetails()), tableFont);
+                    addTextCell(auditTable, auditActionLabel(event.getAction()), tableFont);
+                    addTextCell(auditTable, auditDetailsLabel(event.getDetails()), tableFont);
                 }
 
                 document.add(auditTable);
@@ -407,14 +400,6 @@ public class LicensePlateController {
         return value == null ? "-" : value.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
     }
 
-    private String formatConfidence(Double confidence) {
-        if (confidence == null) {
-            return "-";
-        }
-        double percent = confidence <= 1 ? confidence * 100 : confidence;
-        return String.format(Locale.ROOT, "%.1f%%", percent);
-    }
-
     private String formatVideoTimestamp(Long timestampMs) {
         if (timestampMs == null) {
             return "-";
@@ -425,18 +410,45 @@ public class LicensePlateController {
         return String.format(Locale.ROOT, "%02d:%02d", minutes, seconds);
     }
 
-    private String bboxText(Integer x, Integer y, Integer w, Integer h) {
-        if (x == null || y == null || w == null || h == null) {
-            return "-";
-        }
-        return "x=" + x + ", y=" + y + ", w=" + w + ", h=" + h;
-    }
-
     private String reviewStatusLabel(String status, String reason) {
         if (reason == null || reason.isBlank()) {
             return status;
         }
         return status + " - " + reason;
+    }
+
+    private String auditActionLabel(String action) {
+        if (action == null || action.isBlank()) {
+            return "-";
+        }
+        return switch (action) {
+            case "POLICE_LOOKUP" -> "Cautare dosar vehicul";
+            case "INSURANCE_CREATE" -> "Polita creata";
+            case "INSURANCE_UPDATE" -> "Polita actualizata";
+            case "DETECTION_CONFIRMED" -> "Detectie confirmata";
+            case "DETECTION_REJECTED" -> "Detectie respinsa";
+            case "DETECTION_REOPENED" -> "Detectie redeschisa";
+            case "COPILOT_QUERY" -> "Intrebare catre copilot";
+            case "COPILOT_DENIED" -> "Cerere copilot refuzata";
+            case "COPILOT_ERROR" -> "Eroare copilot";
+            default -> action.toLowerCase(Locale.ROOT).replace('_', ' ');
+        };
+    }
+
+    private String auditDetailsLabel(String details) {
+        if (details == null || details.isBlank()) {
+            return "-";
+        }
+        if ("Police vehicle lookup".equals(details)) {
+            return "Cautare dosar vehicul";
+        }
+        if (details.startsWith("Created insurance id=")) {
+            return details.replace("Created insurance id=", "Polita creata, id=");
+        }
+        if (details.startsWith("Updated insurance id=")) {
+            return details.replace("Updated insurance id=", "Polita actualizata, id=");
+        }
+        return details;
     }
 
     private Image loadImageForPdf(String imagePath) throws IOException, BadElementException {

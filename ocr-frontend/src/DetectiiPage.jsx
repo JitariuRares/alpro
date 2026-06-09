@@ -41,13 +41,6 @@ function DetectiiReviewPanel() {
     Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
   }), []);
 
-  const confidenceLabel = (confidence) => {
-    if (confidence == null || Number.isNaN(Number(confidence))) {
-      return '-';
-    }
-    return `${(Number(confidence) * 100).toFixed(1)}%`;
-  };
-
   const loadReviewQueue = async () => {
     setLoading(true);
     setError('');
@@ -229,7 +222,7 @@ function DetectiiReviewPanel() {
                     </span>
                     <strong>{item.plateNumber || 'FARA TEXT'}</strong>
                     <small>
-                      {item.sourceLabel} - {confidenceLabel(item.confidence)} - {item.detectedAt ? new Date(item.detectedAt).toLocaleString('ro-RO') : '-'}
+                      {item.sourceLabel} - {item.detectedAt ? new Date(item.detectedAt).toLocaleString('ro-RO') : '-'}
                       {item.occurrenceCount > 1 ? ` - ${item.occurrenceCount} aparitii` : ''}
                     </small>
                   </div>

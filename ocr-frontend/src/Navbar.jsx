@@ -51,6 +51,7 @@ function Navbar() {
   const canSeeParcare = [ROLE_PARKING, ROLE_POLICE].includes(role);
   const canSeeAsigurari = [ROLE_INSURANCE, ROLE_POLICE].includes(role);
   const canSeeAudit = role === ROLE_POLICE;
+  const parkingRoute = role === ROLE_PARKING ? '/parcare?tab=operare' : '/parcare?tab=sesiuni';
 
   return (
     <header className="navbar">
@@ -85,7 +86,7 @@ function Navbar() {
             )}
 
             {canSeeParcare && (
-              <NavLink to="/parcare" className={navClass}>
+              <NavLink to={parkingRoute} className={navClass}>
                 <FaParking aria-hidden="true" />
                 <span>Parcare</span>
               </NavLink>

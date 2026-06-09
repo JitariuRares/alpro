@@ -12,6 +12,7 @@ import {
 import { useLocation } from 'react-router-dom';
 import { API_BASE_URL } from './config';
 import { readApiError, friendlyErrorMessage } from './errorMessages';
+import { auditActionLabel, auditDetailsLabel } from './auditLabels';
 
 const normalizePlate = (value) => (value || '').trim().toUpperCase();
 
@@ -161,7 +162,6 @@ function PlateSearchPage() {
   };
 
   const plate = lookup?.plate;
-  const confidence = plate?.confidence != null ? `${(plate.confidence * 100).toFixed(1)}%` : '-';
   const openParkingCount = lookup?.parkingHistory?.filter((parking) => parking.status === 'OPEN').length || 0;
   const detectionCount = (lookup?.recentOcrDetections?.length || 0) + (lookup?.recentVideoDetections?.length || 0);
   const today = new Date();
@@ -172,15 +172,6 @@ function PlateSearchPage() {
     return new Date(insurance.validFrom) <= today && today <= new Date(insurance.validTo);
   }) || [];
   const insuranceStatus = validInsurances.length > 0 ? 'Activa' : 'Lipsa/expirata';
-
-  const actionLabel = (action) => ({
-    POLICE_LOOKUP: 'Lookup politie',
-    INSURANCE_CREATE: 'Polita creata',
-    INSURANCE_UPDATE: 'Polita actualizata',
-    DETECTION_CONFIRMED: 'Detectie confirmata',
-    DETECTION_REJECTED: 'Detectie respinsa',
-    DETECTION_REOPENED: 'Detectie redeschisa',
-  }[action] || action || '-');
 
   const reviewTone = (status) => {
     if (status === 'CONFIRMED') return 'success';
@@ -242,7 +233,6 @@ function PlateSearchPage() {
                 </div>
 
                 <div className="case-metrics-grid">
-                  <CaseMetric label="Confidence" value={confidence} tone="info" />
                   <CaseMetric
                     label="Ultima detectie"
                     value={formatDate(plate.detectedAt)}
@@ -308,6 +298,7 @@ function PlateSearchPage() {
                     <thead>
                       <tr>
                         <th>Status</th>
+                        <th>Zona</th>
                         <th>Intrare</th>
                         <th>Iesire</th>
                         <th>Durata</th>
@@ -322,6 +313,7 @@ function PlateSearchPage() {
                               {parking.status || '-'}
                             </span>
                           </td>
+                          <td>{parking.parkingZone || 'Nespecificata'}</td>
                           <td>{formatDateTime(parking.entryTime)}</td>
                           <td>{parking.exitTime ? formatDateTime(parking.exitTime) : 'N/A'}</td>
                           <td>
@@ -347,9 +339,6 @@ function PlateSearchPage() {
                 <div className="timeline-list">
                   {lookup.recentOcrDetections.map((detection) => (
                     <div className="timeline-item" key={detection.id}>
-                      <span className="status-badge info">
-                        {detection.confidence != null ? `${(detection.confidence * 100).toFixed(1)}%` : 'N/A'}
-                      </span>
                       <div>
                         <strong>{detection.processedAt ? new Date(detection.processedAt).toLocaleString() : '-'}</strong>
                         <small>
@@ -358,11 +347,6 @@ function PlateSearchPage() {
                           </span>
                         </small>
                         {detection.reviewReason && <small>Motiv: {detection.reviewReason}</small>}
-                        <small>
-                          {detection.bbox
-                            ? `bbox x:${detection.bbox.x}, y:${detection.bbox.y}, w:${detection.bbox.w}, h:${detection.bbox.h}`
-                            : 'fara bbox'}
-                        </small>
                       </div>
                     </div>
                   ))}
@@ -381,9 +365,7 @@ function PlateSearchPage() {
                         <th>Frame</th>
                         <th>Timp video</th>
                         <th>Track</th>
-                        <th>Confidence</th>
                         <th>Review</th>
-                        <th>BBox</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -392,17 +374,11 @@ function PlateSearchPage() {
                           <td>{detection.frameIndex ?? '-'}</td>
                           <td>{formatVideoTimestamp(detection.timestampMs)}</td>
                           <td>{detection.trackId ?? '-'}</td>
-                          <td>{detection.confidence != null ? `${(detection.confidence * 100).toFixed(1)}%` : '-'}</td>
                           <td>
                             <span className={`status-badge ${reviewTone(detection.reviewStatus)}`}>
                               {reviewLabel(detection.reviewStatus)}
                             </span>
                             {detection.reviewReason && <small className="case-row-note">{detection.reviewReason}</small>}
-                          </td>
-                          <td>
-                            {detection.bbox
-                              ? `x:${detection.bbox.x}, y:${detection.bbox.y}, w:${detection.bbox.w}, h:${detection.bbox.h}`
-                              : '-'}
                           </td>
                         </tr>
                       ))}
@@ -419,11 +395,11 @@ function PlateSearchPage() {
                 <div className="timeline-list">
                   {lookup.auditEvents.map((event) => (
                     <div className="timeline-item audit-event-item" key={event.id}>
-                      <span className="status-badge warning">{actionLabel(event.action)}</span>
+                      <span className="status-badge warning">{auditActionLabel(event.action)}</span>
                       <div>
                         <strong>{event.actorUsername || '-'}</strong>
                         <small>{formatDateTime(event.createdAt)}</small>
-                        <small>{event.details || 'Fara detalii'}</small>
+                        <small>{auditDetailsLabel(event.details)}</small>
                       </div>
                     </div>
                   ))}

@@ -104,6 +104,7 @@ function ParkingSearchPage() {
             <thead>
               <tr>
                 <th>Status</th>
+                <th>Zona</th>
                 <th>Intrare</th>
                 <th>Iesire</th>
                 <th>Durata</th>
@@ -115,6 +116,7 @@ function ParkingSearchPage() {
               {results.map((session) => (
                 <tr key={session.id}>
                   <td>{session.status || '-'}</td>
+                  <td>{session.parkingZone || 'Nespecificata'}</td>
                   <td>{session.entryTime ? new Date(session.entryTime).toLocaleString() : '-'}</td>
                   <td>{session.exitTime ? new Date(session.exitTime).toLocaleString() : 'N/A'}</td>
                   <td>{formatDuration(session.durationMinutes)}</td>

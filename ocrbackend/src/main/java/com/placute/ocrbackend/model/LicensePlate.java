@@ -16,6 +16,10 @@ public class LicensePlate {
     @Column(name = "plate_number", nullable = false, unique = true)
     private String plateNumber;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plate_type", length = 32)
+    private PlateType plateType = PlateType.UNKNOWN;
+
     @Column(name = "detected_at", nullable = false)
     private LocalDateTime detectedAt;
 
@@ -98,6 +102,13 @@ public class LicensePlate {
     }
     public void setPlateNumber(String plateNumber) {
         this.plateNumber = plateNumber;
+    }
+
+    public PlateType getPlateType() {
+        return plateType;
+    }
+    public void setPlateType(PlateType plateType) {
+        this.plateType = plateType;
     }
 
     public LocalDateTime getDetectedAt() {

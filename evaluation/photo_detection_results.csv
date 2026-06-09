@@ -1,0 +1,21 @@
+file_name,ground_truth_plate,expected_plate_type,condition,http_status,detected_plate,detected_plate_type,correct_plate,correct_type,processing_ms_client,ai_make,ai_model,error
+AUDI A4.webp,IL80WNS,STANDARD,clear frontal,200,IL80WNS,STANDARD,true,true,7675,,,
+bmw 3.webp,VS29FOX,STANDARD,clear angled frontal,404,,,false,false,1709,,,Nicio placuta valida gasita.
+image (1).webp,PH54PTC,STANDARD,clear frontal,200,PH54PTC,STANDARD,true,true,2226,,,
+image (2).webp,VL14ZEN,STANDARD,clear frontal,200,VL14ZEN,STANDARD,true,true,2688,,,
+image (4).webp,DJ11BZU,STANDARD,clear frontal,200,DJ11BZU,STANDARD,true,true,2409,,,
+image.webp,NT53RPI,STANDARD,clear frontal,200,NT53RPI,STANDARD,true,true,2649,,,
+IMAGINE LICENTA 1.webp,B669ANN,STANDARD,clear angled frontal,200,B669ANN,STANDARD,true,true,2465,,,
+IMAGINE LICENTA 2.webp,SV78TRO,STANDARD,clear frontal,200,SV78TRO,STANDARD,true,true,2124,,,
+IMAGINE LICENTA 3.webp,CT24AXK,STANDARD,clear frontal,200,CT24AXK,STANDARD,true,true,2582,,,
+IMAGINE LICENTA 4.webp,DB14VKZ,STANDARD,clear frontal,200,DB14VKZ,STANDARD,true,true,2263,,,
+IMAGINE LICENTA 5.webp,B332SRA,STANDARD,clear frontal,200,B332SRA,STANDARD,true,true,2801,,,
+Mercedes e.webp,PH66KOL,STANDARD,clear frontal,404,,,false,false,608,,,Nicio placuta valida gasita.
+mercedes ml.webp,BH01CSR,STANDARD,clear frontal,200,BH01CSR,STANDARD,true,true,2396,,,
+mercedes s.webp,B115FDA,STANDARD,clear frontal,200,B115FDA,STANDARD,true,true,2228,,,
+opel astra.webp,SB97SIN,STANDARD,clear frontal,200,SB97SIN,STANDARD,true,true,2561,,,
+peugeot dubita.webp,B900RCB,STANDARD,clear frontal,200,B900RCB,STANDARD,true,true,2779,,,
+tesla model s.png,BV10TOA,STANDARD,angled frontal,200,BV10TOA,STANDARD,true,true,2484,,,
+Volkswagen Polo.webp,DB18XYZ,STANDARD,clear frontal,200,DB18XYZ,STANDARD,true,true,2784,,,
+WhatsApp Image 2025-08-07 at 14.38.27_2346db86.jpg,SV16USM,STANDARD,close frontal,200,SV16USM,STANDARD,true,true,3071,,,
+WhatsApp Image 2025-09-03 at 22.56.21_3fc998b5.jpg,SV15WDC,STANDARD,close rear,200,SV15WDC,STANDARD,true,true,4087,,,

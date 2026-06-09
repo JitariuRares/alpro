@@ -1,0 +1,2 @@
+﻿file_name,ground_truth_unique_plates,expected_plate_count,detected_unique_plates,detected_plate_count,raw_detection_count,processing_ms,frame_step,correct_unique_plates,missed_plates,false_positive_plates,notes
+example_video.mp4,"B332SRA;CJ16VBS",2,,,,,,,,,

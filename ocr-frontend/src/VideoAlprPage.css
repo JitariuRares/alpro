@@ -133,6 +133,7 @@
   color: #fff;
   border-radius: 6px;
   font-size: 12px;
+  font-weight: 700;
   padding: 2px 7px;
   white-space: nowrap;
 }
@@ -185,6 +186,13 @@
   font-weight: 800;
   padding: 2px 7px;
   letter-spacing: 0.04em;
+}
+
+.video-plate-type {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.78rem;
 }
 
 @media (max-width: 900px) {

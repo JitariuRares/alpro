@@ -108,7 +108,7 @@ public class DashboardStatsDto {
         return recentAuditEvents;
     }
 
-    public record OpenParkingDto(Long id, String plateNumber, LocalDateTime entryTime) {
+    public record OpenParkingDto(Long id, String plateNumber, String parkingZone, LocalDateTime entryTime) {
     }
 
     public record VideoJobDto(

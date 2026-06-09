@@ -37,10 +37,14 @@ public class ParkingService {
     @Value("${app.upload-dir:uploads}")
     private String uploadDir;
 
-    public ParkingSessionDto registerEntry(String rawPlateNumber, LocalDateTime entryTime, MultipartFile image) throws IOException {
+    public ParkingSessionDto registerEntry(String rawPlateNumber, String rawParkingZone, LocalDateTime entryTime, MultipartFile image) throws IOException {
         String plateNumber = normalizePlate(rawPlateNumber);
+        String parkingZone = normalizeParkingZone(rawParkingZone);
         if (plateNumber.isBlank()) {
             throw new RuntimeException("Numarul placutei este obligatoriu.");
+        }
+        if (parkingZone.isBlank()) {
+            throw new RuntimeException("Zona de parcare este obligatorie.");
         }
         if (image == null || image.isEmpty()) {
             throw new RuntimeException("Dovada foto pentru ENTRY este obligatorie.");
@@ -62,6 +66,7 @@ public class ParkingService {
         session.setExitTime(null);
         session.setEntryImagePath(entryImagePath);
         session.setExitImagePath(null);
+        session.setParkingZone(parkingZone);
         session.setStatus(ParkingSessionStatus.OPEN);
 
         ParkingHistory saved = parkingHistoryRepository.save(session);
@@ -207,6 +212,7 @@ public class ParkingService {
         return new ParkingSessionDto(
                 session.getId(),
                 session.getLicensePlate() != null ? session.getLicensePlate().getPlateNumber() : null,
+                session.getParkingZone(),
                 session.getEntryTime(),
                 session.getExitTime(),
                 normalizedStatus,
@@ -221,6 +227,17 @@ public class ParkingService {
             return "";
         }
         return rawPlateNumber.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeParkingZone(String rawParkingZone) {
+        if (rawParkingZone == null) {
+            return "";
+        }
+        String normalized = rawParkingZone.trim().replaceAll("\\s+", " ");
+        if (normalized.length() > 50) {
+            normalized = normalized.substring(0, 50);
+        }
+        return normalized;
     }
 
     private Resource toUrlResource(Path path) {

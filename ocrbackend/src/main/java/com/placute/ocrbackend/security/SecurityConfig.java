@@ -52,7 +52,7 @@ public class SecurityConfig {
                 .toList();
         config.setAllowedOrigins(origins.isEmpty() ? List.of("http://localhost:3000") : origins);
         config.setAllowCredentials(false);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Range"));
         config.setExposedHeaders(List.of("Authorization", "Accept-Ranges", "Content-Range"));
 

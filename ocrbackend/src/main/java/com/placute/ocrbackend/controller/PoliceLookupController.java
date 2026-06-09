@@ -29,7 +29,7 @@ public class PoliceLookupController {
             Authentication authentication
     ) {
         PoliceLookupDto response = policeLookupService.lookupByPlateNumber(plateNumber);
-        auditLogService.log(authentication, "POLICE_LOOKUP", response.getPlateNumber(), "Police vehicle lookup");
+        auditLogService.log(authentication, "POLICE_LOOKUP", response.getPlateNumber(), "Cautare dosar vehicul");
         return ResponseEntity.ok(response);
     }
 }

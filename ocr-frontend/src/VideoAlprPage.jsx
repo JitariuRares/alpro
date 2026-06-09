@@ -64,6 +64,45 @@ function VideoAlprPage() {
     return `${twoDigits(minutes)}:${twoDigits(seconds)}`;
   };
 
+  const colorLabel = (value) => {
+    if (!value) {
+      return null;
+    }
+    const normalized = String(value).trim().toLowerCase();
+    const colors = {
+      white: 'Alb',
+      alb: 'Alb',
+      black: 'Negru',
+      negru: 'Negru',
+      gray: 'Gri',
+      grey: 'Gri',
+      gri: 'Gri',
+      silver: 'Argintiu',
+      argintiu: 'Argintiu',
+      red: 'Rosu',
+      rosu: 'Rosu',
+      blue: 'Albastru',
+      albastru: 'Albastru',
+      green: 'Verde',
+      verde: 'Verde',
+      yellow: 'Galben',
+      galben: 'Galben',
+      orange: 'Portocaliu',
+      portocaliu: 'Portocaliu',
+      brown: 'Maro',
+      maro: 'Maro',
+      beige: 'Bej',
+      bej: 'Bej',
+      gold: 'Auriu',
+      auriu: 'Auriu',
+      purple: 'Mov',
+      mov: 'Mov',
+      burgundy: 'Visiniu',
+      visiniu: 'Visiniu',
+    };
+    return colors[normalized] || normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  };
+
   const fetchJobs = useCallback(async () => {
     const response = await fetch(`${API_BASE_URL}/api/video-jobs`, {
       headers: authHeader,
@@ -423,7 +462,6 @@ function VideoAlprPage() {
     const scaleX = videoMeta.renderedWidth / videoMeta.naturalWidth;
     const scaleY = videoMeta.renderedHeight / videoMeta.naturalHeight;
     const keepTrackVisibleMs = 1500;
-
     const overlays = [];
 
     for (const [key, timeline] of trackTimelines.entries()) {
@@ -446,7 +484,6 @@ function VideoAlprPage() {
 
       const previous = nextIndex > 0 ? timeline[nextIndex - 1] : null;
       const next = nextIndex < timeline.length ? timeline[nextIndex] : null;
-
       let sourceDetection = null;
       let interpolatedBbox = null;
 
@@ -478,7 +515,6 @@ function VideoAlprPage() {
       overlays.push({
         key,
         plateText: sourceDetection.plateText,
-        trackId: sourceDetection.trackId,
         style: {
           left: `${interpolatedBbox.x * scaleX}px`,
           top: `${interpolatedBbox.y * scaleY}px`,
@@ -512,11 +548,25 @@ function VideoAlprPage() {
     navigate(`/search?plate=${encodeURIComponent(plateText)}`);
   };
 
+  const plateTypeLabel = (type) => {
+    const labels = {
+      STANDARD: 'Standard',
+      DIPLOMATIC: 'Diplomatica',
+      TEMPORARY: 'Temporara',
+      PROBE: 'Probe',
+      MILITARY: 'Militara',
+      MAI: 'MAI',
+      LOCAL: 'Locala',
+      UNKNOWN: 'Necunoscuta',
+    };
+    return labels[type] || type || 'Necunoscuta';
+  };
+
   return (
     <div className="video-page">
       <section className="video-card">
         <h2>Video ALPR</h2>
-        <p className="video-muted">Upload video, procesare async, status job, rezultate cu bounding box pe frame.</p>
+        <p className="video-muted">Upload video, procesare async, status job si momente de detectie pe inregistrare.</p>
 
         <div className="video-form-row">
           <label className="video-file-label">
@@ -560,7 +610,7 @@ function VideoAlprPage() {
         </div>
 
         <div className="video-card">
-          <h3>Preview + overlay</h3>
+          <h3>Preview video</h3>
           {currentJob && (
             <p className="video-muted">
               Job #{currentJob.id} | {currentJob.status}
@@ -592,7 +642,7 @@ function VideoAlprPage() {
                     style={overlay.style}
                   >
                     <span className="video-bbox-label">
-                      {overlay.plateText || 'PLATE'}
+                      {overlay.plateText || 'PLACUTA'}
                     </span>
                   </div>
                 ))}
@@ -604,7 +654,7 @@ function VideoAlprPage() {
 
           {videoUrl && (
             <p className="video-muted">
-              Timp curent: {formatTimestampForUi(currentVideoMs)} | Box-uri active: {activeOverlays.length}
+              Timp curent: {formatTimestampForUi(currentVideoMs)}
             </p>
           )}
         </div>
@@ -634,7 +684,14 @@ function VideoAlprPage() {
                     className={selectedPlate === item.plateText ? 'video-selected-row' : ''}
                     onClick={() => jumpToDetection(item.firstDetection)}
                   >
-                    <td>{item.plateText}</td>
+                    <td>
+                      <strong>{item.plateText}</strong>
+                      {item.firstDetection?.plateType && (
+                        <span className="video-plate-type">
+                          {plateTypeLabel(item.firstDetection.plateType)}
+                        </span>
+                      )}
+                    </td>
                     <td>
                       {item.aiAttributes ? (
                         <div className="video-ai-summary">
@@ -643,7 +700,7 @@ function VideoAlprPage() {
                             {[item.aiAttributes.make, item.aiAttributes.model].filter(Boolean).join(' ') || 'Necunoscut'}
                           </strong>
                           <small>
-                            {[item.aiAttributes.color, item.aiAttributes.bodyType].filter(Boolean).join(' / ') || 'atribute partiale'}
+                            {[colorLabel(item.aiAttributes.color), item.aiAttributes.bodyType].filter(Boolean).join(' / ') || 'atribute partiale'}
                           </small>
                         </div>
                       ) : (

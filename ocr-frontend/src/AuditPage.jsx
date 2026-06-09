@@ -3,16 +3,7 @@ import { FaClipboardList, FaDownload, FaFilter, FaRedo, FaSearch } from 'react-i
 import ModuleShell from './ModuleShell';
 import { API_BASE_URL } from './config';
 import { readApiError, friendlyErrorMessage } from './errorMessages';
-
-const ACTION_OPTIONS = [
-  { value: '', label: 'Toate actiunile' },
-  { value: 'POLICE_LOOKUP', label: 'Police lookup' },
-  { value: 'INSURANCE_CREATE', label: 'Polita creata' },
-  { value: 'INSURANCE_UPDATE', label: 'Polita actualizata' },
-  { value: 'DETECTION_CONFIRMED', label: 'Detectie confirmata' },
-  { value: 'DETECTION_REJECTED', label: 'Detectie respinsa' },
-  { value: 'DETECTION_REOPENED', label: 'Detectie redeschisa' },
-];
+import { AUDIT_ACTION_OPTIONS, auditActionLabel, auditDetailsLabel } from './auditLabels';
 
 function actionTone(action) {
   if (action === 'POLICE_LOOKUP') return 'info';
@@ -25,7 +16,7 @@ function actionTone(action) {
 }
 
 function actionLabel(action) {
-  return ACTION_OPTIONS.find((option) => option.value === action)?.label || action || '-';
+  return auditActionLabel(action);
 }
 
 function formatDate(value) {
@@ -108,7 +99,7 @@ function AuditPage() {
       log.actorUsername || '-',
       actionLabel(log.action),
       log.targetPlateNumber || '-',
-      log.details || '-',
+      auditDetailsLabel(log.details),
     ]);
     const csv = [header, ...rows]
       .map((row) => row.map(csvCell).join(','))
@@ -127,9 +118,9 @@ function AuditPage() {
 
   return (
     <ModuleShell
-      eyebrow="Trasabilitate"
+      eyebrow="Jurnal activitate"
       title="Audit"
-      subtitle="Jurnal pentru actiuni sensibile: lookup politie, creare/modificare polite si operatii importante."
+      subtitle="Istoric pentru cautari de vehicule, modificari de polite si decizii importante din aplicatie."
       actions={<span className="status-badge success">{logs.length} evenimente</span>}
     >
       <section className="audit-filter-panel">
@@ -154,7 +145,7 @@ function AuditPage() {
             value={filters.action}
             onChange={(e) => updateFilter('action', e.target.value)}
           >
-            {ACTION_OPTIONS.map((option) => (
+            {AUDIT_ACTION_OPTIONS.map((option) => (
               <option key={option.value || 'all'} value={option.value}>
                 {option.label}
               </option>
@@ -210,7 +201,7 @@ function AuditPage() {
                       </span>
                     </td>
                     <td>{log.targetPlateNumber || '-'}</td>
-                    <td>{log.details || '-'}</td>
+                    <td>{auditDetailsLabel(log.details)}</td>
                   </tr>
                 ))}
               </tbody>

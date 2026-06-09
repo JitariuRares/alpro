@@ -7,6 +7,7 @@ import com.placute.ocrbackend.integration.dto.MlAlprResult;
 import com.placute.ocrbackend.dto.VehicleAttributesDto;
 import com.placute.ocrbackend.model.LicensePlate;
 import com.placute.ocrbackend.model.OcrHistory;
+import com.placute.ocrbackend.model.PlateType;
 import com.placute.ocrbackend.repository.LicensePlateRepository;
 import com.placute.ocrbackend.repository.OcrHistoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,13 +23,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 public class OcrService {
-
-    private static final Pattern PLATE_PATTERN = Pattern.compile("[A-Z]{1,2}\\s?\\d{2}\\s?[A-Z]{3}");
 
     @Autowired
     private LicensePlateRepository plateRepository;
@@ -45,12 +42,15 @@ public class OcrService {
     @Autowired
     private OpenAIVehicleAttributeService vehicleAttributeService;
 
+    @Autowired
+    private RomanianPlateValidator plateValidator;
+
     @Value("${alpr.fallback.openai.enabled:false}")
     private boolean openAiFallbackEnabled;
 
     public record OcrDetectionResult(LicensePlate licensePlate, Double confidence, MlAlprResult.Bbox bbox) {}
 
-    private record PlateDetection(String plate, Double confidence, MlAlprResult.Bbox bbox) {}
+    private record PlateDetection(String plate, PlateType plateType, Double confidence, MlAlprResult.Bbox bbox) {}
 
     public String recognizeText(File imageFile) {
         try {
@@ -110,16 +110,26 @@ public class OcrService {
                 return null;
             }
 
-            String directPlate = extractPlate(result.getPlateText());
+            RomanianPlateValidator.ValidationResult directPlate = classifyPlate(result.getPlateText());
             if (directPlate != null) {
-                return new PlateDetection(directPlate, result.getConfidence(), result.getBbox());
+                return new PlateDetection(
+                        directPlate.normalizedPlate(),
+                        directPlate.plateType(),
+                        result.getConfidence(),
+                        result.getBbox()
+                );
             }
 
             if (result.getCandidates() != null) {
                 for (MlAlprResult.Candidate candidate : result.getCandidates()) {
-                    String candidatePlate = extractPlate(candidate.getText());
+                    RomanianPlateValidator.ValidationResult candidatePlate = classifyPlate(candidate.getText());
                     if (candidatePlate != null) {
-                        return new PlateDetection(candidatePlate, candidate.getConfidence(), result.getBbox());
+                        return new PlateDetection(
+                                candidatePlate.normalizedPlate(),
+                                candidatePlate.plateType(),
+                                candidate.getConfidence(),
+                                result.getBbox()
+                        );
                     }
                 }
             }
@@ -132,11 +142,11 @@ public class OcrService {
 
     private PlateDetection detectWithOpenAI(File image) {
         try {
-            String plate = extractPlate(openAIOcrService.detectPlateNumber(image));
+            RomanianPlateValidator.ValidationResult plate = classifyPlate(openAIOcrService.detectPlateNumber(image));
             if (plate == null) {
                 return null;
             }
-            return new PlateDetection(plate, null, null);
+            return new PlateDetection(plate.normalizedPlate(), plate.plateType(), null, null);
         } catch (IOException e) {
             System.out.println("Eroare OpenAI: " + e.getMessage());
             return null;
@@ -144,26 +154,13 @@ public class OcrService {
     }
 
     private String extractPlate(String rawText) {
-        if (rawText == null || rawText.isBlank()) {
-            return null;
-        }
+        RomanianPlateValidator.ValidationResult result = classifyPlate(rawText);
+        return result != null ? result.normalizedPlate() : null;
+    }
 
-        String cleanedText = rawText.toUpperCase()
-                .replaceAll("[^A-Z0-9 ]", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
-
-        Matcher matcher = PLATE_PATTERN.matcher(cleanedText);
-        if (matcher.find()) {
-            return matcher.group().replaceAll("\\s+", "");
-        }
-
-        String compact = cleanedText.replaceAll("\\s+", "");
-        if (compact.matches("[A-Z]{1,2}\\d{2}[A-Z]{3}")) {
-            return compact;
-        }
-
-        return null;
+    private RomanianPlateValidator.ValidationResult classifyPlate(String rawText) {
+        RomanianPlateValidator.ValidationResult result = plateValidator.validate(rawText);
+        return result.plateType() == PlateType.UNKNOWN ? null : result;
     }
 
     private LicensePlate savePlate(PlateDetection detection, File imageFile) {
@@ -178,6 +175,7 @@ public class OcrService {
         lp.setDetectedAt(LocalDateTime.now());
         lp.setImagePath(imageFile.getAbsolutePath());
         lp.setConfidence(detection.confidence());
+        lp.setPlateType(detection.plateType());
 
         MlAlprResult.Bbox bbox = detection.bbox();
         if (bbox != null) {

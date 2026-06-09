@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './UploadPage.css';
 import { API_BASE_URL } from './config';
@@ -8,13 +8,11 @@ function UploadPage() {
   const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [previewBox, setPreviewBox] = useState(null);
   const [carData, setCarData] = useState(null);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [editData, setEditData] = useState({ brand: '', model: '', owner: '' });
   const [uploading, setUploading] = useState(false);
-  const imgRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -114,42 +112,6 @@ function UploadPage() {
     }
   };
 
-  const handlePreviewLoad = () => {
-    if (!imgRef.current) {
-      setPreviewBox(null);
-      return;
-    }
-
-    const img = imgRef.current;
-    if (!img.naturalWidth || !img.naturalHeight) {
-      setPreviewBox(null);
-      return;
-    }
-
-    setPreviewBox({
-      renderedWidth: img.clientWidth,
-      renderedHeight: img.clientHeight,
-      naturalWidth: img.naturalWidth,
-      naturalHeight: img.naturalHeight,
-    });
-  };
-
-  const getOverlayStyle = () => {
-    if (!carData?.bbox || !previewBox) {
-      return null;
-    }
-
-    const scaleX = previewBox.renderedWidth / previewBox.naturalWidth;
-    const scaleY = previewBox.renderedHeight / previewBox.naturalHeight;
-
-    return {
-      left: `${carData.bbox.x * scaleX}px`,
-      top: `${carData.bbox.y * scaleY}px`,
-      width: `${carData.bbox.w * scaleX}px`,
-      height: `${carData.bbox.h * scaleY}px`,
-    };
-  };
-
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditData((prev) => ({ ...prev, [name]: value }));
@@ -179,7 +141,6 @@ function UploadPage() {
       setCarData((prev) => ({
         ...updated,
         confidence: prev?.confidence ?? null,
-        bbox: prev?.bbox ?? null,
         aiAttributes: prev?.aiAttributes ?? null,
       }));
       setSuccessMessage('Detaliile au fost actualizate cu succes!');
@@ -210,14 +171,60 @@ function UploadPage() {
     setError('');
   };
 
-  const overlayStyle = getOverlayStyle();
-  const confidencePercent = carData?.confidence != null
-    ? `${(carData.confidence * 100).toFixed(1)}%`
-    : null;
+  const plateTypeLabel = (type) => {
+    const labels = {
+      STANDARD: 'Standard',
+      DIPLOMATIC: 'Diplomatica',
+      TEMPORARY: 'Temporara',
+      PROBE: 'Probe',
+      MILITARY: 'Militara',
+      MAI: 'MAI',
+      LOCAL: 'Locala',
+      UNKNOWN: 'Necunoscuta',
+    };
+    return labels[type] || type || 'Necunoscuta';
+  };
+
+  const colorLabel = (value) => {
+    if (!value) {
+      return 'Necunoscuta';
+    }
+    const normalized = String(value).trim().toLowerCase();
+    const colors = {
+      white: 'Alb',
+      alb: 'Alb',
+      black: 'Negru',
+      negru: 'Negru',
+      gray: 'Gri',
+      grey: 'Gri',
+      gri: 'Gri',
+      silver: 'Argintiu',
+      argintiu: 'Argintiu',
+      red: 'Rosu',
+      rosu: 'Rosu',
+      blue: 'Albastru',
+      albastru: 'Albastru',
+      green: 'Verde',
+      verde: 'Verde',
+      yellow: 'Galben',
+      galben: 'Galben',
+      orange: 'Portocaliu',
+      portocaliu: 'Portocaliu',
+      brown: 'Maro',
+      maro: 'Maro',
+      beige: 'Bej',
+      bej: 'Bej',
+      gold: 'Auriu',
+      auriu: 'Auriu',
+      purple: 'Mov',
+      mov: 'Mov',
+      burgundy: 'Visiniu',
+      visiniu: 'Visiniu',
+    };
+    return colors[normalized] || normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  };
+
   const aiAttributes = carData?.aiAttributes;
-  const aiConfidencePercent = aiAttributes?.confidence != null
-    ? `${(aiAttributes.confidence * 100).toFixed(0)}%`
-    : null;
 
   return (
     <div className="upload-container">
@@ -227,19 +234,10 @@ function UploadPage() {
         {previewUrl && (
           <div className="preview-wrapper">
             <img
-              ref={imgRef}
               src={previewUrl}
               alt="Preview imagine selectata"
               className="upload-preview"
-              onLoad={handlePreviewLoad}
             />
-            {overlayStyle && (
-              <div className="bbox-overlay" style={overlayStyle}>
-                <span className="bbox-label">
-                  {carData.plateNumber || 'PLACUTA'}
-                </span>
-              </div>
-            )}
           </div>
         )}
 
@@ -261,8 +259,8 @@ function UploadPage() {
         {carData && (
           <>
             <p><strong>Placuta:</strong> {carData.plateNumber}</p>
-            {confidencePercent && (
-              <p><strong>Incredere detectie:</strong> {confidencePercent}</p>
+            {carData.plateType && (
+              <p><strong>Tip placuta:</strong> {plateTypeLabel(carData.plateType)}</p>
             )}
             <button onClick={handleLookupVehicle} className="primary-btn mt-2">
               Cauta date vehicul
@@ -272,14 +270,13 @@ function UploadPage() {
               <div className="ai-vehicle-card">
                 <div className="ai-vehicle-header">
                   <span className="ai-vehicle-badge">Sugestie AI</span>
-                  {aiConfidencePercent && <span className="ai-vehicle-confidence">{aiConfidencePercent}</span>}
                 </div>
                 <p>
                   <strong>Marca / model:</strong>{' '}
                   {[aiAttributes.make, aiAttributes.model].filter(Boolean).join(' ') || 'Necunoscut'}
                 </p>
                 <p>
-                  <strong>Culoare:</strong> {aiAttributes.color || 'Necunoscuta'}
+                  <strong>Culoare:</strong> {colorLabel(aiAttributes.color)}
                 </p>
                 <p>
                   <strong>Caroserie:</strong> {aiAttributes.bodyType || 'Necunoscuta'}

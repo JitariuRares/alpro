@@ -164,6 +164,7 @@ public class PoliceLookupService {
 
         return new PoliceLookupDto.ParkingDto(
                 parking.getId(),
+                parking.getParkingZone(),
                 parking.getEntryTime(),
                 parking.getExitTime(),
                 status.name(),

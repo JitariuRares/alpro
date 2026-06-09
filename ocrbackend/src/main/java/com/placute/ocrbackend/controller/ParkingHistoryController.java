@@ -24,16 +24,17 @@ public class ParkingHistoryController {
     @Autowired
     private ParkingService parkingService;
 
-    @PreAuthorize("hasAnyRole('PARKING', 'POLICE')")
+    @PreAuthorize("hasRole('PARKING')")
     @PostMapping(value = "/entry", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> registerEntry(
             @RequestParam("plateNumber") String plateNumber,
+            @RequestParam("parkingZone") String parkingZone,
             @RequestParam(value = "entryTime", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime entryTime,
             @RequestParam("image") MultipartFile image
     ) {
         try {
-            ParkingSessionDto created = parkingService.registerEntry(plateNumber, entryTime, image);
+            ParkingSessionDto created = parkingService.registerEntry(plateNumber, parkingZone, entryTime, image);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
         } catch (RuntimeException ex) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
@@ -42,7 +43,7 @@ public class ParkingHistoryController {
         }
     }
 
-    @PreAuthorize("hasAnyRole('PARKING', 'POLICE')")
+    @PreAuthorize("hasRole('PARKING')")
     @PostMapping(value = "/exit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> registerExit(
             @RequestParam("plateNumber") String plateNumber,

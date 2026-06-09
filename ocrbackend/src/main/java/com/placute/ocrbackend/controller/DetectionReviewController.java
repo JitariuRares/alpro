@@ -230,17 +230,7 @@ public class DetectionReviewController {
                 .max(Double::compareTo)
                 .orElse(0d);
 
-        double avgConfidence = group.detections().stream()
-                .map(VideoDetection::getConfidence)
-                .filter(Objects::nonNull)
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(0d);
-
-        String detail = "%d aparitii brute / confidence mediu %.1f%%".formatted(
-                group.detections().size(),
-                avgConfidence * 100
-        );
+        String detail = "%d aparitii inregistrate".formatted(group.detections().size());
 
         String reviewedBy = group.detections().stream()
                 .map(VideoDetection::getReviewedBy)

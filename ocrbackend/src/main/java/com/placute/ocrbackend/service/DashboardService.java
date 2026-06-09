@@ -86,6 +86,7 @@ public class DashboardService {
                 .map(parking -> new DashboardStatsDto.OpenParkingDto(
                         parking.getId(),
                         parking.getLicensePlate() != null ? parking.getLicensePlate().getPlateNumber() : null,
+                        parking.getParkingZone(),
                         parking.getEntryTime()
                 ))
                 .toList();

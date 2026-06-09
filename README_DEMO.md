@@ -87,3 +87,17 @@ docker compose up -d --build backend frontend
 - Daca UI-ul pare neschimbat, ruleaza `docker compose up -d --build frontend` si apoi refresh hard in browser.
 - Daca backend-ul da eroare dupa schimbari de model, ruleaza `docker compose logs --tail=80 backend`.
 - Pentru un reset complet al containerelor, foloseste `docker compose down` doar cand vrei oprirea serviciilor; datele din volume raman, daca nu folosesti optiuni de stergere volume.
+
+## Reguli placute romanesti
+
+Aplicatia normalizeaza textul OCR prin eliminarea spatiilor si conversia la litere mari. Backend-ul valideaza codurile de judet cunoscute si clasifica placutele in ordinea:
+
+1. `DIPLOMATIC` - `CD 123 101`, `TC 156 234`, `CO 205 113`
+2. `MAI` - `MAI 12345`
+3. `MILITARY` - `A 123456`
+4. `PROBE` - `CJ 101 PROBE`, `B 234 PROBE`
+5. `TEMPORARY` - `CJ 012345`, `B 012345`
+6. `STANDARD` - `CJ 01 ABC`, `CJ 123 ABC`, `B 12 XYZ`, `B 123 XYZ`
+7. `LOCAL` - suport conservator pentru exemple locale precum `CJ-N 1234`
+
+Textele care nu respecta aceste reguli sunt tratate ca `UNKNOWN` si nu sunt salvate ca detectii valide.

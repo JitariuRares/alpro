@@ -34,6 +34,10 @@ public class VideoDetection {
     @Column(name = "plate_text", nullable = false, length = 32)
     private String plateText;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plate_type", length = 32)
+    private PlateType plateType = PlateType.UNKNOWN;
+
     @Column(name = "confidence")
     private Double confidence;
 
@@ -140,6 +144,14 @@ public class VideoDetection {
 
     public void setPlateText(String plateText) {
         this.plateText = plateText;
+    }
+
+    public PlateType getPlateType() {
+        return plateType;
+    }
+
+    public void setPlateType(PlateType plateType) {
+        this.plateType = plateType;
     }
 
     public Double getConfidence() {

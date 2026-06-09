@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -117,7 +118,7 @@ public class OpenAIVehicleAttributeService {
         VehicleAttributesDto dto = new VehicleAttributesDto(
                 clean(attributes.opt("make")),
                 clean(attributes.opt("model")),
-                clean(attributes.opt("color")),
+                normalizeColor(clean(attributes.opt("color"))),
                 clean(attributes.opt("bodyType")),
                 clampConfidence(attributes.optDouble("confidence", 0.0)),
                 truncate(clean(attributes.opt("reasoning")), 500)
@@ -140,18 +141,26 @@ public class OpenAIVehicleAttributeService {
 
     private String buildPrompt() {
         return """
-                Analyze the visible vehicle in this image and estimate only attributes that can be seen.
+                You assist a Romanian ALPR application. Analyze only the visible vehicle,
+                not the license plate text or any personal data.
+
                 Return JSON only, with exactly these keys:
                 {
                   "make": string or null,
                   "model": string or null,
-                  "color": string or null,
+                  "color": Romanian color name with first letter uppercase, or null,
                   "bodyType": string or null,
                   "confidence": number between 0 and 1,
                   "reasoning": short Romanian explanation
                 }
-                Do not read or infer owner, insurance, personal data, or legal status.
-                If the make or model is uncertain, use null or a low confidence score.
+
+                Rules:
+                - Do not infer make or model from the license plate number.
+                - Do not infer owner, insurance, personal data, or legal status.
+                - If the logo, body shape, or image quality is unclear, use null values.
+                - Prefer conservative answers over invented vehicle details.
+                - Use a low confidence score when the vehicle is partially visible.
+                Use Romanian for color, for example: Alb, Negru, Gri, Argintiu, Rosu, Albastru.
                 """;
     }
 
@@ -178,6 +187,49 @@ public class OpenAIVehicleAttributeService {
             return null;
         }
         return Math.max(0.0, Math.min(1.0, confidence));
+    }
+
+    private String normalizeColor(String rawColor) {
+        if (rawColor == null || rawColor.isBlank()) {
+            return null;
+        }
+        String normalized = rawColor.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+        Map<String, String> colors = Map.ofEntries(
+                Map.entry("white", "Alb"),
+                Map.entry("alb", "Alb"),
+                Map.entry("black", "Negru"),
+                Map.entry("negru", "Negru"),
+                Map.entry("gray", "Gri"),
+                Map.entry("grey", "Gri"),
+                Map.entry("gri", "Gri"),
+                Map.entry("silver", "Argintiu"),
+                Map.entry("argintiu", "Argintiu"),
+                Map.entry("red", "Rosu"),
+                Map.entry("rosu", "Rosu"),
+                Map.entry("blue", "Albastru"),
+                Map.entry("albastru", "Albastru"),
+                Map.entry("green", "Verde"),
+                Map.entry("verde", "Verde"),
+                Map.entry("yellow", "Galben"),
+                Map.entry("galben", "Galben"),
+                Map.entry("orange", "Portocaliu"),
+                Map.entry("portocaliu", "Portocaliu"),
+                Map.entry("brown", "Maro"),
+                Map.entry("maro", "Maro"),
+                Map.entry("beige", "Bej"),
+                Map.entry("bej", "Bej"),
+                Map.entry("gold", "Auriu"),
+                Map.entry("auriu", "Auriu"),
+                Map.entry("purple", "Mov"),
+                Map.entry("mov", "Mov"),
+                Map.entry("burgundy", "Visiniu"),
+                Map.entry("visiniu", "Visiniu")
+        );
+        String mapped = colors.get(normalized);
+        if (mapped != null) {
+            return mapped;
+        }
+        return normalized.substring(0, 1).toUpperCase(Locale.ROOT) + normalized.substring(1);
     }
 
     private String truncate(String text, int maxLength) {

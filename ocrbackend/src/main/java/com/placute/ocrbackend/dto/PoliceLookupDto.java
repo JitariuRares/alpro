@@ -164,6 +164,7 @@ public class PoliceLookupDto {
 
     public static class ParkingDto {
         private Long id;
+        private String parkingZone;
         private LocalDateTime entryTime;
         private LocalDateTime exitTime;
         private String status;
@@ -173,6 +174,7 @@ public class PoliceLookupDto {
 
         public ParkingDto(
                 Long id,
+                String parkingZone,
                 LocalDateTime entryTime,
                 LocalDateTime exitTime,
                 String status,
@@ -181,6 +183,7 @@ public class PoliceLookupDto {
                 boolean hasExitImage
         ) {
             this.id = id;
+            this.parkingZone = parkingZone;
             this.entryTime = entryTime;
             this.exitTime = exitTime;
             this.status = status;
@@ -191,6 +194,10 @@ public class PoliceLookupDto {
 
         public Long getId() {
             return id;
+        }
+
+        public String getParkingZone() {
+            return parkingZone;
         }
 
         public LocalDateTime getEntryTime() {

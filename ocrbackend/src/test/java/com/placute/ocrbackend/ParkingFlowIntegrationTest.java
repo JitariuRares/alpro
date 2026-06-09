@@ -29,9 +29,11 @@ class ParkingFlowIntegrationTest extends BaseIntegrationTest {
         String entryResponse = mockMvc.perform(multipart("/api/parking/entry")
                         .file(entryImage)
                         .param("plateNumber", "B100AAA")
+                        .param("parkingZone", "Zona 1")
                         .header("Authorization", bearer(parkingToken)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.plateNumber").value("B100AAA"))
+                .andExpect(jsonPath("$.parkingZone").value("Zona 1"))
                 .andExpect(jsonPath("$.status").value("OPEN"))
                 .andExpect(jsonPath("$.hasEntryImage").value(true))
                 .andExpect(jsonPath("$.hasExitImage").value(false))
@@ -102,12 +104,14 @@ class ParkingFlowIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(multipart("/api/parking/entry")
                         .file(firstImage)
                         .param("plateNumber", "CJ55XYZ")
+                        .param("parkingZone", "Zona 2")
                         .header("Authorization", bearer(parkingToken)))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(multipart("/api/parking/entry")
                         .file(secondImage)
                         .param("plateNumber", "CJ55XYZ")
+                        .param("parkingZone", "Zona 2")
                         .header("Authorization", bearer(parkingToken)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("OPEN")));

@@ -1,0 +1,21 @@
+file_name,ground_truth_plate,expected_plate_type,condition,include,notes
+AUDI A4.webp,IL80WNS,STANDARD,clear frontal,yes,read from original image
+bmw 3.webp,VS29FOX,STANDARD,clear angled frontal,yes,read from original image
+image (1).webp,PH54PTC,STANDARD,clear frontal,yes,read from original image
+image (2).webp,VL14ZEN,STANDARD,clear frontal,yes,read from original image
+image (4).webp,DJ11BZU,STANDARD,clear frontal,yes,read from original image
+image.webp,NT53RPI,STANDARD,clear frontal,yes,read from contact sheet; verify if needed
+IMAGINE LICENTA 1.webp,B669ANN,STANDARD,clear angled frontal,yes,read from original image
+IMAGINE LICENTA 2.webp,SV78TRO,STANDARD,clear frontal,yes,read from original image
+IMAGINE LICENTA 3.webp,CT24AXK,STANDARD,clear frontal,yes,read from contact sheet
+IMAGINE LICENTA 4.webp,DB14VKZ,STANDARD,clear frontal,yes,read from contact sheet
+IMAGINE LICENTA 5.webp,B332SRA,STANDARD,clear frontal,yes,read from contact sheet
+Mercedes e.webp,PH66KOL,STANDARD,clear frontal,yes,read from contact sheet
+mercedes ml.webp,BH01CSR,STANDARD,clear frontal,yes,read from original image
+mercedes s.webp,B115FDA,STANDARD,clear frontal,yes,read from contact sheet
+opel astra.webp,SB97SIN,STANDARD,clear frontal,yes,read from contact sheet
+peugeot dubita.webp,B900RCB,STANDARD,clear frontal,yes,read from original image
+tesla model s.png,BV10TOA,STANDARD,angled frontal,yes,read from original image
+Volkswagen Polo.webp,DB18XYZ,STANDARD,clear frontal,yes,read from contact sheet
+WhatsApp Image 2025-08-07 at 14.38.27_2346db86.jpg,SV16USM,STANDARD,close frontal,yes,read from contact sheet
+WhatsApp Image 2025-09-03 at 22.56.21_3fc998b5.jpg,SV15WDC,STANDARD,close rear,yes,read from contact sheet

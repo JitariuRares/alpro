@@ -22,17 +22,18 @@ import {
 import { API_BASE_URL } from './config';
 import { ROLE_INSURANCE, ROLE_PARKING, ROLE_POLICE, normalizeRole } from './authRouting';
 import { readApiError, friendlyErrorMessage } from './errorMessages';
+import { auditActionLabel } from './auditLabels';
 
 function DashboardPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
-  const [lastUpdated, setLastUpdated] = useState(null);
   const role = normalizeRole(localStorage.getItem('role'));
   const canUsePoliceTools = role === ROLE_POLICE;
   const canUseParking = [ROLE_PARKING, ROLE_POLICE].includes(role);
   const canUseInsurance = [ROLE_INSURANCE, ROLE_POLICE].includes(role);
   const canManageInsurance = role === ROLE_INSURANCE;
+  const parkingRoute = role === ROLE_PARKING ? '/parcare?tab=operare' : '/parcare?tab=sesiuni';
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -68,7 +69,6 @@ function DashboardPage() {
           recentVideoJobs: data.recentVideoJobs || [],
           recentAuditEvents: data.recentAuditEvents || [],
         });
-        setLastUpdated(new Date());
       } catch (err) {
         setError(friendlyErrorMessage(err.message, 'Nu s-au putut incarca statisticile.'));
       }
@@ -79,14 +79,12 @@ function DashboardPage() {
 
   const formatDateTime = (value) => (value ? new Date(value).toLocaleString('ro-RO') : '-');
 
-  const actionLabel = (action) => ({
-    POLICE_LOOKUP: 'Lookup politie',
-    INSURANCE_CREATE: 'Polita creata',
-    INSURANCE_UPDATE: 'Polita actualizata',
-    DETECTION_CONFIRMED: 'Detectie confirmata',
-    DETECTION_REJECTED: 'Detectie respinsa',
-    DETECTION_REOPENED: 'Detectie redeschisa',
-  }[action] || action || '-');
+  const videoStatusLabel = (status) => ({
+    COMPLETED: 'Finalizat',
+    RUNNING: 'In desfasurare',
+    PENDING: 'In asteptare',
+    FAILED: 'Esuat',
+  }[status] || status || '-');
 
   const roleLabel = ({
     [ROLE_POLICE]: 'POLICE',
@@ -104,7 +102,6 @@ function DashboardPage() {
     <div className="dashboard-page">
       <section className="module-hero dashboard-hero">
         <div>
-          <p className="module-eyebrow">ALPRo Command Center</p>
           <h1>Dashboard</h1>
           <p className="module-subtitle">
             Privire rapida peste vehicule, asigurari, sesiuni de parcare si distributia detectiilor recente.
@@ -113,7 +110,6 @@ function DashboardPage() {
         <div className="dashboard-hero-status">
           <span className="status-badge success">Online</span>
           <span className="status-badge info">{roleLabel}</span>
-          <small>Refresh: {lastUpdated ? lastUpdated.toLocaleTimeString('ro-RO') : '-'}</small>
         </div>
       </section>
 
@@ -138,9 +134,9 @@ function DashboardPage() {
               </button>
             )}
             {canUseParking && (
-              <button type="button" className="stat-card clickable" onClick={() => navigate('/parcare')}>
+              <button type="button" className="stat-card clickable" onClick={() => navigate(parkingRoute)}>
                 <div className="stat-icon orange"><FaParking aria-hidden="true" /></div>
-                <span>Parcari deschise</span>
+                <span>Sesiuni parcare</span>
                 <strong>{stats.openParkings}</strong>
                 <small>{stats.totalParkings} sesiuni total</small>
               </button>
@@ -156,9 +152,9 @@ function DashboardPage() {
             {canUsePoliceTools && (
               <button type="button" className="stat-card clickable" onClick={() => navigate('/detectii?tab=video')}>
                 <div className="stat-icon violet"><FaVideo aria-hidden="true" /></div>
-                <span>Video jobs active</span>
+                <span>Procesari video</span>
                 <strong>{stats.runningVideoJobs}</strong>
-                <small>Pending sau running</small>
+                <small>In asteptare sau in lucru</small>
               </button>
             )}
             {canUsePoliceTools && (
@@ -182,22 +178,22 @@ function DashboardPage() {
             {canUsePoliceTools && (
               <button type="button" onClick={() => navigate('/vehicule')}>
                 <span className="status-badge info">2</span>
-                <strong>Vehicle Case</strong>
-                <small>Verifica dosarul unei placute.</small>
+                <strong>Dosar vehicul</strong>
+                <small>Verifica dosarul unui vehicul.</small>
               </button>
             )}
             {canUseParking && (
-              <button type="button" onClick={() => navigate('/parcare')}>
+              <button type="button" onClick={() => navigate(parkingRoute)}>
                 <span className="status-badge success">3</span>
                 <strong>Parcare</strong>
-                <small>Controleaza intrari si iesiri.</small>
+                <small>{role === ROLE_PARKING ? 'Controleaza intrari si iesiri.' : 'Consulta sesiuni dupa placuta.'}</small>
               </button>
             )}
             {canUsePoliceTools && (
               <button type="button" onClick={() => navigate('/audit')}>
                 <span className="status-badge danger">4</span>
                 <strong>Audit</strong>
-                <small>Exporta trasabilitatea actiunilor.</small>
+                <small>Vezi cine a facut modificari si cand.</small>
               </button>
             )}
           </section>
@@ -227,10 +223,10 @@ function DashboardPage() {
                   </button>
                 )}
                 {canUseParking && (
-                  <button type="button" onClick={() => navigate('/parcare')}>
+                  <button type="button" onClick={() => navigate(parkingRoute)}>
                     <span className="status-badge info">{stats.openParkings}</span>
-                    <strong>Sesiuni de parcare deschise</strong>
-                    <small>Urmeaza intrarile fara iesire inregistrata.</small>
+                    <strong>Sesiuni parcare</strong>
+                    <small>{role === ROLE_PARKING ? 'Urmeaza intrarile fara iesire inregistrata.' : 'Verifica istoricul deja inregistrat.'}</small>
                   </button>
                 )}
               </div>
@@ -240,8 +236,8 @@ function DashboardPage() {
             <div className="dashboard-panel">
               <div className="section-heading">
                 <div>
-                  <span className="module-eyebrow">Parking live</span>
-                  <h2>Intrari deschise</h2>
+                  <span className="module-eyebrow">Parcare</span>
+                  <h2>Sesiuni active</h2>
                 </div>
                 <span className="status-badge info">{stats.recentOpenParkings.length}</span>
               </div>
@@ -250,7 +246,7 @@ function DashboardPage() {
                   {stats.recentOpenParkings.map((parking) => (
                     <button type="button" key={parking.id} onClick={() => openVehicle(parking.plateNumber)}>
                       <strong>{parking.plateNumber || '-'}</strong>
-                      <small>{formatDateTime(parking.entryTime)}</small>
+                      <small>{parking.parkingZone || 'Zona nespecificata'} - {formatDateTime(parking.entryTime)}</small>
                     </button>
                   ))}
                 </div>
@@ -301,7 +297,7 @@ function DashboardPage() {
                 {stats.recentVideoJobs.map((job) => (
                   <button type="button" key={job.id} onClick={() => navigate('/detectii?tab=video')}>
                     <strong>{job.sourceFilename || `Job #${job.id}`}</strong>
-                    <small>{job.status || '-'} - {job.progressPercent ?? 0}% - {formatDateTime(job.createdAt)}</small>
+                    <small>{videoStatusLabel(job.status)} - {job.progressPercent ?? 0}% - {formatDateTime(job.createdAt)}</small>
                   </button>
                 ))}
                 {stats.recentVideoJobs.length === 0 && <p className="case-empty">Nu exista joburi video recente.</p>}
@@ -314,7 +310,7 @@ function DashboardPage() {
           <section className="dashboard-panel">
             <div className="section-heading">
               <div>
-                <span className="module-eyebrow">Trasabilitate</span>
+                <span className="module-eyebrow">Istoric actiuni</span>
                 <h2>Audit recent</h2>
               </div>
               <FaHistory aria-hidden="true" />
@@ -322,7 +318,7 @@ function DashboardPage() {
             <div className="audit-strip">
               {stats.recentAuditEvents.map((event) => (
                 <button type="button" key={event.id} onClick={() => openVehicle(event.targetPlateNumber)}>
-                  <span className="status-badge info">{actionLabel(event.action)}</span>
+                  <span className="status-badge info">{auditActionLabel(event.action)}</span>
                   <strong>{event.targetPlateNumber || 'General'}</strong>
                   <small>{event.actorUsername || '-'} - {formatDateTime(event.createdAt)}</small>
                 </button>

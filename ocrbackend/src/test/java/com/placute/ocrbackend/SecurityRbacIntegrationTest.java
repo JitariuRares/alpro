@@ -86,8 +86,45 @@ class SecurityRbacIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(multipart("/api/parking/entry")
                         .file(image)
                         .param("plateNumber", "B777XYZ")
+                        .param("parkingZone", "Zona 1")
                         .header("Authorization", bearer(insuranceToken)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void policeRoleCannotRegisterParkingEntryOrExit() throws Exception {
+        String policeToken = createUserAndGetToken("police", UserRole.POLICE);
+        createPlate("B777POL");
+
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "parking.jpg",
+                "image/jpeg",
+                "parking-proof".getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/parking/entry")
+                        .file(image)
+                        .param("plateNumber", "B777POL")
+                        .param("parkingZone", "Zona 1")
+                        .header("Authorization", bearer(policeToken)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(multipart("/api/parking/exit")
+                        .file(image)
+                        .param("plateNumber", "B777POL")
+                        .header("Authorization", bearer(policeToken)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void policeRoleCanReadParkingSessionsByPlate() throws Exception {
+        String policeToken = createUserAndGetToken("police", UserRole.POLICE);
+        createPlate("B778POL");
+
+        mockMvc.perform(get("/api/parking/B778POL")
+                        .header("Authorization", bearer(policeToken)))
+                .andExpect(status().isOk());
     }
 
     @Test

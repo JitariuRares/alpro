@@ -1,6 +1,7 @@
 package com.placute.ocrbackend.dto;
 
 import com.placute.ocrbackend.model.DetectionReviewStatus;
+import com.placute.ocrbackend.model.PlateType;
 
 import java.time.LocalDateTime;
 
@@ -11,6 +12,7 @@ public class VideoDetectionDto {
     private Long timestampMs;
     private Integer trackId;
     private String plateText;
+    private PlateType plateType;
     private Double confidence;
     private BboxDto bbox;
     private DetectionReviewStatus reviewStatus;
@@ -25,6 +27,7 @@ public class VideoDetectionDto {
             Long timestampMs,
             Integer trackId,
             String plateText,
+            PlateType plateType,
             Double confidence,
             BboxDto bbox,
             DetectionReviewStatus reviewStatus,
@@ -38,6 +41,7 @@ public class VideoDetectionDto {
         this.timestampMs = timestampMs;
         this.trackId = trackId;
         this.plateText = plateText;
+        this.plateType = plateType;
         this.confidence = confidence;
         this.bbox = bbox;
         this.reviewStatus = reviewStatus;
@@ -65,6 +69,10 @@ public class VideoDetectionDto {
 
     public String getPlateText() {
         return plateText;
+    }
+
+    public PlateType getPlateType() {
+        return plateType;
     }
 
     public Double getConfidence() {

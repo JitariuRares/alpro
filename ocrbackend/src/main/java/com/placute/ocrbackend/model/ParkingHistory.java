@@ -20,6 +20,9 @@ public class ParkingHistory {
     @Column(name = "exit_image_path")
     private String exitImagePath;
 
+    @Column(name = "parking_zone", length = 50)
+    private String parkingZone;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private ParkingSessionStatus status;
@@ -64,6 +67,14 @@ public class ParkingHistory {
 
     public void setExitImagePath(String exitImagePath) {
         this.exitImagePath = exitImagePath;
+    }
+
+    public String getParkingZone() {
+        return parkingZone;
+    }
+
+    public void setParkingZone(String parkingZone) {
+        this.parkingZone = parkingZone;
     }
 
     public ParkingSessionStatus getStatus() {

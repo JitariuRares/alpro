@@ -20,12 +20,17 @@ from PIL import Image
 
 app = FastAPI(title="ALPR ML Service", version="0.2.0")
 
-BUCHAREST_PATTERN = re.compile(r"^B\d{3}[A-Z]{3}$")
-COUNTY_PATTERN = re.compile(r"^[A-Z]{2}\d{2}[A-Z]{3}$")
+STANDARD_PATTERN = re.compile(r"^(B|[A-Z]{2})\d{2,3}[A-Z]{3}$")
+DIPLOMATIC_PATTERN = re.compile(r"^(CD|TC|CO)\d{6}$")
+TEMPORARY_PATTERN = re.compile(r"^(B|[A-Z]{2})0\d{2,5}$")
+PROBE_PATTERN = re.compile(r"^(B|[A-Z]{2})\d{3}PROBE$")
+MILITARY_PATTERN = re.compile(r"^A\d{3,7}$")
+MAI_PATTERN = re.compile(r"^MAI\d{3,7}$")
 VALID_COUNTY_CODES = {
     "AB",
     "AR",
     "AG",
+    "B",
     "BC",
     "BH",
     "BN",
@@ -61,9 +66,9 @@ VALID_COUNTY_CODES = {
     "TR",
     "TM",
     "TL",
-    "VS",
     "VL",
     "VN",
+    "VS",
 }
 FORBIDDEN_SERIES_PREFIX = {"I", "O"}
 FORBIDDEN_SERIES_VALUES = {"III", "OOO"}
@@ -535,43 +540,61 @@ class AlprPipeline:
         if not text:
             return None
 
-        cleaned = re.sub(r"[^A-Za-z0-9]", "", text).upper()
-        if not cleaned:
+        compact = re.sub(r"[^A-Za-z0-9]", "", text).upper()
+        if not compact:
             return None
 
-        # Romanian plate format is length 7 after removing separators.
-        if len(cleaned) < 7:
-            return None
+        candidate_patterns = (
+            re.compile(r"(CD|TC|CO)\d{6}"),
+            re.compile(r"MAI\d{3,7}"),
+            re.compile(r"A\d{3,7}"),
+            re.compile(r"(B|[A-Z]{2})\d{3}PROBE"),
+            re.compile(r"(B|[A-Z]{2})0\d{2,5}"),
+            re.compile(r"(B|[A-Z]{2})\d{2,3}[A-Z]{3}"),
+        )
 
-        for i in range(0, len(cleaned) - 6):
-            candidate = cleaned[i : i + 7]
-            normalized = self._normalize_ro_candidate(candidate)
-            if normalized is not None:
-                return normalized
+        for pattern in candidate_patterns:
+            for match in pattern.finditer(compact):
+                normalized = self._normalize_ro_candidate(match.group())
+                if normalized:
+                    return normalized
 
         return None
 
     def _normalize_ro_candidate(self, candidate: str) -> Optional[str]:
-        if len(candidate) != 7:
+        if DIPLOMATIC_PATTERN.match(candidate):
+            return candidate
+
+        if MAI_PATTERN.match(candidate):
+            return candidate
+
+        if MILITARY_PATTERN.match(candidate):
+            return candidate
+
+        probe = PROBE_PATTERN.match(candidate)
+        if probe and probe.group(1) in VALID_COUNTY_CODES:
+            return candidate
+
+        temporary = TEMPORARY_PATTERN.match(candidate)
+        if temporary and temporary.group(1) in VALID_COUNTY_CODES:
+            return candidate
+
+        standard = STANDARD_PATTERN.match(candidate)
+        if not standard or standard.group(1) not in VALID_COUNTY_CODES:
             return None
 
         if candidate[0] == "B":
-            digits = "".join(self._normalize_digit_slot(ch) for ch in candidate[1:4])
-            letters = "".join(self._normalize_letter_slot(ch) for ch in candidate[4:7])
-            normalized = f"B{digits}{letters}"
-            if BUCHAREST_PATTERN.match(normalized) and self._is_valid_series_letters(letters):
-                return normalized
-            return None
+            prefix_len = 1
+        else:
+            prefix_len = 2
 
-        county = "".join(self._normalize_letter_slot(ch) for ch in candidate[0:2])
-        digits = "".join(self._normalize_digit_slot(ch) for ch in candidate[2:4])
-        letters = "".join(self._normalize_letter_slot(ch) for ch in candidate[4:7])
+        serial_start = len(candidate) - 3
+        county = candidate[:prefix_len]
+        digits = "".join(self._normalize_digit_slot(ch) for ch in candidate[prefix_len:serial_start])
+        letters = "".join(self._normalize_letter_slot(ch) for ch in candidate[serial_start:])
         normalized = f"{county}{digits}{letters}"
-        if (
-            county in VALID_COUNTY_CODES
-            and COUNTY_PATTERN.match(normalized)
-            and self._is_valid_series_letters(letters)
-        ):
+
+        if STANDARD_PATTERN.match(normalized) and self._is_valid_series_letters(letters):
             return normalized
         return None
 

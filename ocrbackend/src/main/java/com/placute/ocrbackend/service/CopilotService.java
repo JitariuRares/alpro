@@ -29,14 +29,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 public class CopilotService {
-
-    private static final Pattern PLATE_PATTERN = Pattern.compile("([A-Z]{1,2}\\s?\\d{2,3}\\s?[A-Z]{3})");
 
     @Autowired
     private AppUserRepository appUserRepository;
@@ -67,6 +63,9 @@ public class CopilotService {
 
     @Autowired
     private AuditLogService auditLogService;
+
+    @Autowired
+    private RomanianPlateValidator plateValidator;
 
     public CopilotChatResponse chat(String rawMessage, Authentication authentication) {
         String message = rawMessage == null ? "" : rawMessage.trim();
@@ -269,6 +268,7 @@ public class CopilotService {
                 .map(session -> {
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("id", session.getId());
+                    item.put("parkingZone", session.getParkingZone());
                     item.put("entryTime", session.getEntryTime());
                     item.put("exitTime", session.getExitTime());
                     item.put("status", session.getStatus() != null ? session.getStatus().name() : null);
@@ -583,15 +583,7 @@ public class CopilotService {
     }
 
     private String extractPlate(String message) {
-        if (message == null || message.isBlank()) {
-            return null;
-        }
-        String uppercase = message.toUpperCase(Locale.ROOT);
-        Matcher matcher = PLATE_PATTERN.matcher(uppercase);
-        if (!matcher.find()) {
-            return null;
-        }
-        return normalizePlate(matcher.group(1));
+        return normalizePlate(message);
     }
 
     private String extractActor(String normalizedText) {
@@ -664,14 +656,7 @@ public class CopilotService {
     }
 
     private String normalizePlate(String rawPlate) {
-        if (rawPlate == null || rawPlate.isBlank()) {
-            return null;
-        }
-        String normalized = rawPlate.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
-        if (normalized.length() < 6 || normalized.length() > 8) {
-            return null;
-        }
-        return normalized;
+        return plateValidator.extractNormalizedPlate(rawPlate);
     }
 
     private boolean containsAny(String text, String... tokens) {

@@ -95,7 +95,7 @@ public class InsuranceController {
                 authentication,
                 "INSURANCE_CREATE",
                 plateNumber,
-                "Created insurance id=" + saved.getId()
+                "Polita creata, id=" + saved.getId()
         );
         return ResponseEntity.ok(saved);
     }
@@ -136,7 +136,7 @@ public class InsuranceController {
                 authentication,
                 "INSURANCE_UPDATE",
                 plateNumber,
-                "Updated insurance id=" + saved.getId()
+                "Polita actualizata, id=" + saved.getId()
         );
         return ResponseEntity.ok(saved);
     }

@@ -1,10 +1,12 @@
 package com.placute.ocrbackend.dto;
 
 import java.time.LocalDateTime;
+import com.placute.ocrbackend.model.PlateType;
 
 public class OcrPlateDto {
     private Long id;
     private String plateNumber;
+    private PlateType plateType;
     private String brand;
     private String model;
     private String owner;
@@ -16,11 +18,12 @@ public class OcrPlateDto {
     private BboxDto bbox;
     private VehicleAttributesDto aiAttributes;
 
-    public OcrPlateDto(Long id, String plateNumber, String brand, String model, String owner,
+    public OcrPlateDto(Long id, String plateNumber, PlateType plateType, String brand, String model, String owner,
                        String imagePath, LocalDateTime detectedAt, String user, String role,
                        Double confidence, BboxDto bbox, VehicleAttributesDto aiAttributes) {
         this.id = id;
         this.plateNumber = plateNumber;
+        this.plateType = plateType;
         this.brand = brand;
         this.model = model;
         this.owner = owner;
@@ -35,6 +38,7 @@ public class OcrPlateDto {
 
     public Long getId() { return id; }
     public String getPlateNumber() { return plateNumber; }
+    public PlateType getPlateType() { return plateType; }
     public String getBrand() { return brand; }
     public String getModel() { return model; }
     public String getOwner() { return owner; }

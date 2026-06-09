@@ -188,6 +188,7 @@ public class VideoJobService {
                 detection.getTimestampMs(),
                 detection.getTrackId(),
                 detection.getPlateText(),
+                detection.getPlateType(),
                 detection.getConfidence(),
                 bboxDto,
                 detection.getReviewStatus(),

@@ -38,6 +38,9 @@ public class VideoJobProcessorService {
     @Autowired
     private OpenAIVehicleAttributeService vehicleAttributeService;
 
+    @Autowired
+    private RomanianPlateValidator plateValidator;
+
     @Value("${alpr.video.min-confidence:0.70}")
     private double minConfidence;
 
@@ -106,6 +109,10 @@ public class VideoJobProcessorService {
             if (mlDetection == null || mlDetection.getPlateText() == null || mlDetection.getPlateText().isBlank()) {
                 continue;
             }
+            RomanianPlateValidator.ValidationResult plate = plateValidator.validate(mlDetection.getPlateText());
+            if (plate.plateType() == com.placute.ocrbackend.model.PlateType.UNKNOWN) {
+                continue;
+            }
             if (mlDetection.getConfidence() != null && mlDetection.getConfidence() < minConfidence) {
                 continue;
             }
@@ -115,7 +122,8 @@ public class VideoJobProcessorService {
             detection.setFrameIndex(mlDetection.getFrameIndex() != null ? mlDetection.getFrameIndex() : 0);
             detection.setTimestampMs(mlDetection.getTimestampMs());
             detection.setTrackId(mlDetection.getTrackId());
-            detection.setPlateText(mlDetection.getPlateText());
+            detection.setPlateText(plate.normalizedPlate());
+            detection.setPlateType(plate.plateType());
             detection.setConfidence(mlDetection.getConfidence());
             if (mlDetection.getBbox() != null) {
                 detection.setBboxX(mlDetection.getBbox().getX());

@@ -2,6 +2,7 @@ package com.placute.ocrbackend.controller;
 
 import com.placute.ocrbackend.dto.VideoDetectionPageDto;
 import com.placute.ocrbackend.dto.VideoJobDto;
+import com.placute.ocrbackend.model.LicensePlate;
 import com.placute.ocrbackend.service.VideoJobService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
@@ -76,5 +77,22 @@ public class VideoJobController {
                 .contentType(MediaType.parseMediaType(payload.contentType()))
                 .contentLength(payload.contentLength())
                 .body(payload.resource());
+    }
+
+    @PreAuthorize("hasRole('POLICE')")
+    @PutMapping("/{jobId}/plates/{plateText}/vehicle-details")
+    public ResponseEntity<LicensePlate> saveDetectedVehicleDetails(
+            @PathVariable Long jobId,
+            @PathVariable String plateText,
+            @RequestBody LicensePlate updatedData,
+            Authentication authentication
+    ) {
+        LicensePlate saved = videoJobService.saveDetectedVehicleDetails(
+                jobId,
+                plateText,
+                updatedData,
+                authentication
+        );
+        return ResponseEntity.ok(saved);
     }
 }

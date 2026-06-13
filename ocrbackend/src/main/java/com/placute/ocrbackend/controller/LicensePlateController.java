@@ -15,7 +15,14 @@ import com.placute.ocrbackend.repository.LicensePlateRepository;
 import com.placute.ocrbackend.repository.OcrHistoryRepository;
 import com.placute.ocrbackend.repository.ParkingHistoryRepository;
 import com.placute.ocrbackend.repository.VideoDetectionRepository;
+import nu.pattern.OpenCV;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.videoio.VideoCapture;
+import org.opencv.videoio.Videoio;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,6 +36,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -38,6 +46,8 @@ import java.util.Optional;
 @RequestMapping("/api/license-plates")
 @CrossOrigin(origins = "http://localhost:3000")
 public class LicensePlateController {
+
+    private static volatile boolean openCvLoaded = false;
 
     @Autowired
     private LicensePlateRepository licensePlateRepository;
@@ -123,7 +133,8 @@ public class LicensePlateController {
                 .stream()
                 .limit(15)
                 .toList();
-        List<VideoDetection> videoDetections = videoDetectionRepository.findTop100ByPlateTextOrderByIdDesc(normalizedPlate)
+        List<VideoDetection> videoDetections = videoDetectionRepository
+                .findTop100ByPlateTextWithJobOrderByIdDesc(normalizedPlate, PageRequest.of(0, 20))
                 .stream()
                 .limit(20)
                 .toList();
@@ -146,7 +157,7 @@ public class LicensePlateController {
             Font emptyFont = new Font(Font.FontFamily.HELVETICA, 11, Font.ITALIC, new BaseColor(100, 116, 139));
             Font grayFont = new Font(Font.FontFamily.HELVETICA, 10, Font.ITALIC, new BaseColor(100, 116, 139));
 
-            Paragraph title = new Paragraph("ALPRo Vehicle Case", titleFont);
+            Paragraph title = new Paragraph("ALPRo Dosar vehicul", titleFont);
             title.setAlignment(Element.ALIGN_LEFT);
             title.setSpacingAfter(4);
             document.add(title);
@@ -160,9 +171,9 @@ public class LicensePlateController {
             document.add(subtitle);
 
             PdfPTable metadata = infoTable();
-            addInfoRow(metadata, "Sistem", "ALPRo operational control", labelFont, textFont);
-            addInfoRow(metadata, "Nivel acces", "POLICE", labelFont, textFont);
-            addInfoRow(metadata, "Scop raport", "Vehicle Case", labelFont, textFont);
+            addInfoRow(metadata, "Sistem", "ALPRo control operational", labelFont, textFont);
+            addInfoRow(metadata, "Nivel acces", "Politie", labelFont, textFont);
+            addInfoRow(metadata, "Scop raport", "Dosar vehicul", labelFont, textFont);
             document.add(metadata);
 
             if (plate.getImagePath() != null) {
@@ -196,14 +207,16 @@ public class LicensePlateController {
             if (insurances.isEmpty()) {
                 document.add(new Paragraph("Nu exista asigurari inregistrate pentru aceasta placuta.", emptyFont));
             } else {
-                PdfPTable insuranceTable = new PdfPTable(new float[]{2.2f, 1.4f, 1.4f});
+                PdfPTable insuranceTable = new PdfPTable(new float[]{1.5f, 1.0f, 1.6f, 1.2f, 1.2f});
                 insuranceTable.setWidthPercentage(100);
                 insuranceTable.setSpacingBefore(5);
                 insuranceTable.setSpacingAfter(15);
 
-                addHeaderCells(insuranceTable, tableHeaderFont, "Companie", "Valabil de la", "Valabil pana");
+                addHeaderCells(insuranceTable, tableHeaderFont, "Polita", "Tip", "Companie", "Valabil de la", "Valabil pana");
 
                 for (Insurance ins : insurances) {
+                    addTextCell(insuranceTable, safe(ins.getPolicyNumber()), tableFont);
+                    addTextCell(insuranceTable, safe(ins.getPolicyType()), tableFont);
                     addTextCell(insuranceTable, safe(ins.getCompany()), tableFont);
                     addTextCell(insuranceTable, formatDate(ins.getValidFrom()), tableFont);
                     addTextCell(insuranceTable, formatDate(ins.getValidTo()), tableFont);
@@ -244,7 +257,7 @@ public class LicensePlateController {
                 detectionTable.setSpacingBefore(5);
                 detectionTable.setSpacingAfter(15);
 
-                addHeaderCells(detectionTable, tableHeaderFont, "Procesat la", "Review", "Fisier");
+                addHeaderCells(detectionTable, tableHeaderFont, "Procesat la", "Status", "Fisier");
 
                 for (OcrHistory history : ocrDetections) {
                     addTextCell(detectionTable, formatDateTime(history.getProcessedAt()), tableFont);
@@ -266,31 +279,44 @@ public class LicensePlateController {
             if (videoDetections.isEmpty()) {
                 document.add(new Paragraph("Nu exista detectii video pentru aceasta placuta.", emptyFont));
             } else {
-                PdfPTable videoTable = new PdfPTable(new float[]{1f, 1.1f, 1.2f, 1.4f});
+                VideoDetection representativeVideoDetection = representativeVideoDetection(videoDetections);
+                String reviewLabel = reviewStatusLabel(
+                        representativeVideoDetection.getReviewStatus() != null
+                                ? representativeVideoDetection.getReviewStatus().name()
+                                : "DE_REVIEW",
+                        representativeVideoDetection.getReviewReason()
+                );
+                Paragraph videoSummary = new Paragraph(
+                        "Placuta apare in " + videoDetections.size()
+                                + " detectii video inregistrate. Status: "
+                                + reviewLabel + ".",
+                        textFont
+                );
+                videoSummary.setSpacingAfter(8);
+                document.add(videoSummary);
+
+                PdfPTable videoTable = new PdfPTable(new float[]{1.3f, 1.3f, 1.4f});
                 videoTable.setWidthPercentage(100);
                 videoTable.setSpacingBefore(5);
                 videoTable.setSpacingAfter(15);
 
-                addHeaderCells(videoTable, tableHeaderFont, "Frame", "Timp video", "Review", "Track");
+                addHeaderCells(videoTable, tableHeaderFont, "Moment video", "Status", "Cadru");
 
-                for (VideoDetection detection : videoDetections) {
-                    addTextCell(videoTable,
-                            detection.getFrameIndex() != null ? detection.getFrameIndex().toString() : "-",
-                            tableFont
-                    );
-                    addTextCell(videoTable, formatVideoTimestamp(detection.getTimestampMs()), tableFont);
-                    addTextCell(videoTable,
-                            reviewStatusLabel(
-                                    detection.getReviewStatus() != null ? detection.getReviewStatus().name() : "DE_REVIEW",
-                                    detection.getReviewReason()
-                            ),
-                            tableFont
-                    );
-                    addTextCell(videoTable,
-                            detection.getTrackId() != null ? detection.getTrackId().toString() : "-",
-                            tableFont
-                    );
-                }
+                videoDetections.stream()
+                        .limit(8)
+                        .forEach(detection -> {
+                            addTextCell(videoTable, formatVideoTimestamp(detection.getTimestampMs()), tableFont);
+                            addTextCell(videoTable,
+                                    reviewStatusLabel(
+                                            detection.getReviewStatus() != null
+                                                    ? detection.getReviewStatus().name()
+                                                    : "DE_REVIEW",
+                                            detection.getReviewReason()
+                                    ),
+                                    tableFont
+                            );
+                            addTextCell(videoTable, "Cadru " + safeFrameIndex(detection.getFrameIndex()), tableFont);
+                        });
 
                 document.add(videoTable);
             }
@@ -300,18 +326,17 @@ public class LicensePlateController {
             if (auditEvents.isEmpty()) {
                 document.add(new Paragraph("Nu exista evenimente de audit asociate acestei placute.", emptyFont));
             } else {
-                PdfPTable auditTable = new PdfPTable(new float[]{1.5f, 1.2f, 1.4f, 2.4f});
+                PdfPTable auditTable = new PdfPTable(new float[]{1.5f, 1.2f, 2.0f});
                 auditTable.setWidthPercentage(100);
                 auditTable.setSpacingBefore(5);
                 auditTable.setSpacingAfter(15);
 
-                addHeaderCells(auditTable, tableHeaderFont, "Timp", "Actor", "Actiune", "Detalii");
+                addHeaderCells(auditTable, tableHeaderFont, "Timp", "Actor", "Actiune");
 
                 for (var event : auditEvents) {
                     addTextCell(auditTable, formatDateTime(event.getCreatedAt()), tableFont);
                     addTextCell(auditTable, safe(event.getActorUsername()), tableFont);
                     addTextCell(auditTable, auditActionLabel(event.getAction()), tableFont);
-                    addTextCell(auditTable, auditDetailsLabel(event.getDetails()), tableFont);
                 }
 
                 document.add(auditTable);
@@ -340,6 +365,111 @@ public class LicensePlateController {
                 .header("Content-Disposition", "attachment; filename=plate_" + normalizedPlate + ".pdf")
                 .contentType(Objects.requireNonNull(MediaType.APPLICATION_PDF))
                 .body(pdfBytes);
+    }
+
+    private VideoFrameResult extractFirstAvailableVideoFrame(List<VideoDetection> videoDetections) {
+        for (VideoDetection detection : videoDetections) {
+            Optional<Image> frame = extractVideoFrameImage(detection);
+            if (frame.isPresent()) {
+                return new VideoFrameResult(detection, frame);
+            }
+        }
+        return new VideoFrameResult(null, Optional.empty());
+    }
+
+    private VideoDetection representativeVideoDetection(List<VideoDetection> videoDetections) {
+        return videoDetections.stream()
+                .filter(detection -> detection.getTimestampMs() != null || detection.getFrameIndex() != null)
+                .max(Comparator.comparingDouble(this::videoDetectionConfidence))
+                .orElse(videoDetections.get(0));
+    }
+
+    private double videoDetectionConfidence(VideoDetection detection) {
+        return detection.getConfidence() != null ? detection.getConfidence() : 0.0;
+    }
+
+    private Optional<Image> extractVideoFrameImage(VideoDetection detection) {
+        Optional<Image> storedDetectionImage = loadStoredVideoDetectionImage(detection);
+        if (storedDetectionImage.isPresent()) {
+            return storedDetectionImage;
+        }
+
+        if (detection == null || detection.getJob() == null || detection.getJob().getStoragePath() == null) {
+            return Optional.empty();
+        }
+
+        File videoFile = new File(detection.getJob().getStoragePath());
+        if (!videoFile.exists() || !videoFile.isFile()) {
+            return Optional.empty();
+        }
+
+        try {
+            loadOpenCv();
+
+            VideoCapture capture = new VideoCapture(videoFile.getAbsolutePath());
+            if (!capture.isOpened()) {
+                return Optional.empty();
+            }
+
+            try {
+                if (detection.getTimestampMs() != null && detection.getTimestampMs() >= 0) {
+                    capture.set(Videoio.CAP_PROP_POS_MSEC, detection.getTimestampMs());
+                } else if (detection.getFrameIndex() != null && detection.getFrameIndex() >= 0) {
+                    capture.set(Videoio.CAP_PROP_POS_FRAMES, detection.getFrameIndex());
+                }
+
+                Mat frame = new Mat();
+                if (!capture.read(frame) || frame.empty()) {
+                    return Optional.empty();
+                }
+
+                MatOfByte encoded = new MatOfByte();
+                if (!Imgcodecs.imencode(".jpg", frame, encoded)) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(Image.getInstance(encoded.toArray()));
+            } finally {
+                capture.release();
+            }
+        } catch (Exception | UnsatisfiedLinkError ex) {
+            return Optional.empty();
+        }
+    }
+
+    private Optional<Image> loadStoredVideoDetectionImage(VideoDetection detection) {
+        if (detection == null
+                || detection.getVehicleImagePath() == null
+                || detection.getVehicleImagePath().isBlank()) {
+            return Optional.empty();
+        }
+
+        File imageFile = new File(detection.getVehicleImagePath());
+        if (!imageFile.exists() || !imageFile.isFile()) {
+            return Optional.empty();
+        }
+
+        try {
+            return Optional.of(loadImageForPdf(detection.getVehicleImagePath()));
+        } catch (Exception ex) {
+            return Optional.empty();
+        }
+    }
+
+    private void loadOpenCv() {
+        if (openCvLoaded) {
+            return;
+        }
+
+        synchronized (LicensePlateController.class) {
+            if (!openCvLoaded) {
+                OpenCV.loadLocally();
+                openCvLoaded = true;
+            }
+        }
+    }
+
+    private record VideoFrameResult(VideoDetection detection, Optional<Image> frame) {
     }
 
     private void addSectionTitle(Document document, String title, Font font) throws DocumentException {
@@ -411,10 +541,22 @@ public class LicensePlateController {
     }
 
     private String reviewStatusLabel(String status, String reason) {
+        String label = switch (status) {
+            case "CONFIRMED" -> "Confirmat";
+            case "REJECTED" -> "Respins";
+            case "DE_REVIEW" -> "De revizuit";
+            default -> status == null || status.isBlank()
+                    ? "De revizuit"
+                    : status.toLowerCase(Locale.ROOT).replace('_', ' ');
+        };
         if (reason == null || reason.isBlank()) {
-            return status;
+            return label;
         }
-        return status + " - " + reason;
+        return label + " - " + reason;
+    }
+
+    private String safeFrameIndex(Integer frameIndex) {
+        return frameIndex == null ? "-" : String.valueOf(frameIndex);
     }
 
     private String auditActionLabel(String action) {

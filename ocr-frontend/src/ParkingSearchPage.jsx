@@ -79,14 +79,15 @@ function ParkingSearchPage() {
 
   return (
     <>
-      <div className="search-form">
-        <h2>Cauta sesiuni parking</h2>
-        <form onSubmit={handleSearch}>
+      <div className="case-search-panel">
+        <div>
+          <h2>Cauta sesiuni de parcare</h2>
+        </div>
+        <form className="case-search-controls" onSubmit={handleSearch}>
           <input
             type="text"
             value={plateNumber}
             onChange={(e) => setPlateNumber(e.target.value)}
-            placeholder="Numar placuta"
             className="search-input"
             required
           />

@@ -59,7 +59,7 @@ function Navbar() {
         <div className="brand-mark">A</div>
         <div>
           <h1>ALPRo</h1>
-          <span>Operational control</span>
+          <span>Control operational</span>
         </div>
       </div>
 

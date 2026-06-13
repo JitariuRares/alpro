@@ -10,6 +10,8 @@ import com.placute.ocrbackend.model.OcrHistory;
 import com.placute.ocrbackend.model.PlateType;
 import com.placute.ocrbackend.repository.LicensePlateRepository;
 import com.placute.ocrbackend.repository.OcrHistoryRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,8 @@ import java.util.Optional;
 
 @Service
 public class OcrService {
+
+    private static final Logger log = LoggerFactory.getLogger(OcrService.class);
 
     @Autowired
     private LicensePlateRepository plateRepository;
@@ -96,7 +100,7 @@ public class OcrService {
         }
 
         if (openAiFallbackEnabled) {
-            System.out.println("ML service nu a detectat placuta. Folosim fallback OpenAI...");
+            log.info("ML service did not return a valid plate. Trying OpenAI fallback.");
             return detectWithOpenAI(imageFile);
         }
 
@@ -134,7 +138,7 @@ public class OcrService {
                 }
             }
         } catch (IOException e) {
-            System.out.println("Eroare la apel ML service: " + e.getMessage());
+            log.warn("ML service call failed: {}", e.getMessage());
         }
 
         return null;
@@ -148,7 +152,7 @@ public class OcrService {
             }
             return new PlateDetection(plate.normalizedPlate(), plate.plateType(), null, null);
         } catch (IOException e) {
-            System.out.println("Eroare OpenAI: " + e.getMessage());
+            log.warn("OpenAI OCR fallback failed: {}", e.getMessage());
             return null;
         }
     }
@@ -240,7 +244,7 @@ public class OcrService {
             licensePlate.setAiVehicleAnalyzedAt(LocalDateTime.now());
             plateRepository.save(licensePlate);
         } catch (Exception e) {
-            System.out.println("Analiza AI a vehiculului a fost omisa: " + e.getMessage());
+            log.warn("Vehicle attribute analysis was skipped: {}", e.getMessage());
         }
     }
 
@@ -255,7 +259,7 @@ public class OcrService {
             }
             return sb.toString();
         } catch (IOException | NoSuchAlgorithmException e) {
-            System.out.println("Nu s-a putut calcula hash-ul imaginii: " + e.getMessage());
+            log.warn("Could not compute image hash: {}", e.getMessage());
             return null;
         }
     }

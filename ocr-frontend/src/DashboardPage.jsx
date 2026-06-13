@@ -257,6 +257,7 @@ function DashboardPage() {
             )}
           </section>
 
+          {canUsePoliceTools && (
           <section className="dashboard-bottom-grid">
             <div className="dashboard-panel dashboard-chart-card">
               <div className="section-heading">
@@ -284,27 +285,26 @@ function DashboardPage() {
               )}
             </div>
 
-            {canUsePoliceTools && (
             <div className="dashboard-panel">
               <div className="section-heading">
                 <div>
                   <span className="module-eyebrow">Procesare</span>
-                  <h2>Video jobs recente</h2>
+                  <h2>Procesari video recente</h2>
                 </div>
                 <FaVideo aria-hidden="true" />
               </div>
               <div className="compact-list">
                 {stats.recentVideoJobs.map((job) => (
                   <button type="button" key={job.id} onClick={() => navigate('/detectii?tab=video')}>
-                    <strong>{job.sourceFilename || `Job #${job.id}`}</strong>
+                    <strong>{job.sourceFilename || `Procesare #${job.id}`}</strong>
                     <small>{videoStatusLabel(job.status)} - {job.progressPercent ?? 0}% - {formatDateTime(job.createdAt)}</small>
                   </button>
                 ))}
-                {stats.recentVideoJobs.length === 0 && <p className="case-empty">Nu exista joburi video recente.</p>}
+                {stats.recentVideoJobs.length === 0 && <p className="case-empty">Nu exista procesari video recente.</p>}
               </div>
             </div>
-            )}
           </section>
+          )}
 
           {canUsePoliceTools && (
           <section className="dashboard-panel">

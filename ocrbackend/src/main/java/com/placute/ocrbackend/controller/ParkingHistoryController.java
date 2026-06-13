@@ -31,7 +31,7 @@ public class ParkingHistoryController {
             @RequestParam("parkingZone") String parkingZone,
             @RequestParam(value = "entryTime", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime entryTime,
-            @RequestParam("image") MultipartFile image
+            @RequestParam(value = "image", required = false) MultipartFile image
     ) {
         try {
             ParkingSessionDto created = parkingService.registerEntry(plateNumber, parkingZone, entryTime, image);
@@ -49,7 +49,7 @@ public class ParkingHistoryController {
             @RequestParam("plateNumber") String plateNumber,
             @RequestParam(value = "exitTime", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime exitTime,
-            @RequestParam("image") MultipartFile image
+            @RequestParam(value = "image", required = false) MultipartFile image
     ) {
         try {
             ParkingSessionDto updated = parkingService.registerExit(plateNumber, exitTime, image);

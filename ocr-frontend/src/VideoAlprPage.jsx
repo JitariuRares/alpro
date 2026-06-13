@@ -13,6 +13,9 @@ function VideoAlprPage() {
   const [currentJob, setCurrentJob] = useState(null);
   const [results, setResults] = useState([]);
   const [selectedPlate, setSelectedPlate] = useState(null);
+  const [vehicleDetails, setVehicleDetails] = useState({ brand: '', model: '', owner: '' });
+  const [vehicleSaving, setVehicleSaving] = useState(false);
+  const [vehicleSaveMessage, setVehicleSaveMessage] = useState('');
 
   const [videoUrl, setVideoUrl] = useState(null);
   const [videoMeta, setVideoMeta] = useState(null);
@@ -108,7 +111,7 @@ function VideoAlprPage() {
       headers: authHeader,
     });
     if (!response.ok) {
-      throw new Error(await readApiError(response, 'Nu s-au putut incarca job-urile video.'));
+      throw new Error(await readApiError(response, 'Nu s-au putut incarca procesarile video.'));
     }
     const data = await response.json();
     setJobs(Array.isArray(data) ? data : []);
@@ -120,7 +123,7 @@ function VideoAlprPage() {
       headers: authHeader,
     });
     if (!response.ok) {
-      throw new Error(await readApiError(response, 'Nu s-a putut incarca job-ul video.'));
+      throw new Error(await readApiError(response, 'Nu s-a putut incarca procesarea video.'));
     }
     const data = await response.json();
     setCurrentJob(data);
@@ -194,7 +197,7 @@ function VideoAlprPage() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(friendlyErrorMessage(err.message, 'Nu s-au putut incarca job-urile video.'));
+          setError(friendlyErrorMessage(err.message, 'Nu s-au putut incarca procesarile video.'));
         }
       }
     })();
@@ -253,7 +256,7 @@ function VideoAlprPage() {
 
       const createdJob = await response.json();
       setCurrentJob(createdJob);
-      setInfo('Video incarcat. Job-ul ruleaza in background.');
+      setInfo('Video incarcat. Detectarea ruleaza in fundal.');
       await fetchJobs();
       await loadVideoBlob(createdJob.id);
     } catch (err) {
@@ -277,7 +280,7 @@ function VideoAlprPage() {
         await loadResults(job.id);
       }
     } catch (err) {
-      setError(friendlyErrorMessage(err.message, 'Nu s-a putut deschide job-ul selectat.'));
+      setError(friendlyErrorMessage(err.message, 'Nu s-a putut deschide procesarea selectata.'));
     }
   };
 
@@ -454,6 +457,61 @@ function VideoAlprPage() {
     return summaries;
   }, [results]);
 
+  const selectedPlateSummary = useMemo(() => (
+    plateSummaries.find((summary) => summary.plateText === selectedPlate) || null
+  ), [plateSummaries, selectedPlate]);
+
+  useEffect(() => {
+    setVehicleSaveMessage('');
+
+    if (!selectedPlateSummary?.plateText) {
+      setVehicleDetails({ brand: '', model: '', owner: '' });
+      return undefined;
+    }
+
+    const aiDefaults = {
+      brand: selectedPlateSummary.aiAttributes?.make || '',
+      model: selectedPlateSummary.aiAttributes?.model || '',
+      owner: '',
+    };
+    setVehicleDetails(aiDefaults);
+
+    let cancelled = false;
+    const loadExistingVehicle = async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/license-plates/${encodeURIComponent(selectedPlateSummary.plateText)}`,
+          { headers: authHeader }
+        );
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const existing = Array.isArray(data) ? data[0] : null;
+        if (!cancelled && existing) {
+          setVehicleDetails({
+            brand: existing.brand || aiDefaults.brand,
+            model: existing.model || aiDefaults.model,
+            owner: existing.owner || '',
+          });
+        }
+      } catch {
+        // Existing details are optional; the operator can still save new ones.
+      }
+    };
+
+    loadExistingVehicle();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    authHeader,
+    selectedPlateSummary?.plateText,
+    selectedPlateSummary?.aiAttributes?.make,
+    selectedPlateSummary?.aiAttributes?.model,
+  ]);
+
   const activeOverlays = useMemo(() => {
     if (!videoMeta || !videoMeta.naturalWidth || !videoMeta.naturalHeight) {
       return [];
@@ -548,6 +606,76 @@ function VideoAlprPage() {
     navigate(`/search?plate=${encodeURIComponent(plateText)}`);
   };
 
+  const handleVehicleDetailsChange = (event) => {
+    const { name, value } = event.target;
+    setVehicleDetails((prev) => ({ ...prev, [name]: value }));
+    setVehicleSaveMessage('');
+  };
+
+  const applyVideoAiSuggestion = () => {
+    if (!selectedPlateSummary?.aiAttributes) {
+      return;
+    }
+
+    setVehicleDetails((prev) => ({
+      ...prev,
+      brand: selectedPlateSummary.aiAttributes.make || prev.brand,
+      model: selectedPlateSummary.aiAttributes.model || prev.model,
+    }));
+    setVehicleSaveMessage('Sugestia AI a fost copiata in campurile editabile.');
+  };
+
+  const saveVideoVehicleDetails = async () => {
+    if (!currentJob?.id || !selectedPlateSummary?.plateText) {
+      setError('Selecteaza o placuta detectata inainte de salvare.');
+      return;
+    }
+
+    try {
+      setVehicleSaving(true);
+      setError('');
+      setVehicleSaveMessage('');
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/video-jobs/${currentJob.id}/plates/${encodeURIComponent(selectedPlateSummary.plateText)}/vehicle-details`,
+        {
+          method: 'PUT',
+          headers: {
+            ...authHeader,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(vehicleDetails),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, 'Nu s-au putut salva detaliile vehiculului.'));
+      }
+
+      const saved = await response.json();
+      setVehicleDetails({
+        brand: saved.brand || '',
+        model: saved.model || '',
+        owner: saved.owner || '',
+      });
+      setVehicleSaveMessage('Detaliile vehiculului au fost salvate. Placa poate fi cautata in dosarul vehiculului.');
+    } catch (err) {
+      setError(friendlyErrorMessage(err.message, 'Nu s-au putut salva detaliile vehiculului.'));
+    } finally {
+      setVehicleSaving(false);
+    }
+  };
+
+  const jobStatusLabel = (status) => {
+    const labels = {
+      PENDING: 'In asteptare',
+      RUNNING: 'In procesare',
+      COMPLETED: 'Finalizat',
+      FAILED: 'Esuat',
+    };
+    return labels[status] || status || 'Necunoscut';
+  };
+
   const plateTypeLabel = (type) => {
     const labels = {
       STANDARD: 'Standard',
@@ -566,7 +694,7 @@ function VideoAlprPage() {
     <div className="video-page">
       <section className="video-card">
         <h2>Video ALPR</h2>
-        <p className="video-muted">Upload video, procesare async, status job si momente de detectie pe inregistrare.</p>
+        <p className="video-muted">Incarcare video, procesare in fundal si momente de detectie pe inregistrare.</p>
 
         <div className="video-form-row">
           <label className="video-file-label">
@@ -583,7 +711,7 @@ function VideoAlprPage() {
         <p className="video-muted">Setarile de frame sunt optimizate automat.</p>
 
         <button className="primary-btn" onClick={handleUpload} disabled={uploading}>
-          {uploading ? 'Se incarca...' : 'Porneste job video'}
+          {uploading ? 'Se incarca...' : 'Porneste procesarea'}
         </button>
 
         {info && <div className="alert alert-success">{info}</div>}
@@ -592,15 +720,16 @@ function VideoAlprPage() {
 
       <section className="video-grid">
         <div className="video-card">
-          <h3>Job-uri video</h3>
+          <h3>Procesari video</h3>
           <div className="video-jobs-list">
-            {jobs.length === 0 && <p className="video-muted">Nu exista job-uri video inca.</p>}
+            {jobs.length === 0 && <p className="video-muted">Nu exista procesari video inca.</p>}
             {jobs.map((job) => (
               <div className={`video-job-item ${currentJob?.id === job.id ? 'active' : ''}`} key={job.id}>
                 <div>
-                  <p><strong>#{job.id}</strong> {job.sourceFilename}</p>
+                  <p><strong>Procesare #{job.id}</strong></p>
+                  <small className="video-job-file">{job.sourceFilename}</small>
                   <p className="video-muted">
-                    Status: {job.status} | Detectii: {job.detectionCount ?? 0}
+                    Status: {jobStatusLabel(job.status)} | Detectii: {job.detectionCount ?? 0}
                   </p>
                 </div>
                 <button className="page-btn" onClick={() => openJob(job.id)}>Deschide</button>
@@ -613,7 +742,7 @@ function VideoAlprPage() {
           <h3>Preview video</h3>
           {currentJob && (
             <p className="video-muted">
-              Job #{currentJob.id} | {currentJob.status}
+              Procesare #{currentJob.id} | {jobStatusLabel(currentJob.status)}
               {currentJob.progressPercent != null ? ` | ${currentJob.progressPercent}%` : ''}
             </p>
           )}
@@ -648,7 +777,7 @@ function VideoAlprPage() {
                 ))}
               </>
             ) : (
-              <p className="video-muted">Selecteaza un job pentru a incarca preview-ul video.</p>
+              <p className="video-muted">Selecteaza o procesare pentru a incarca preview-ul video.</p>
             )}
           </div>
 
@@ -662,9 +791,56 @@ function VideoAlprPage() {
 
       <section className="video-card">
         <h3>Rezultate detectii</h3>
-        {plateSummaries.length === 0 && <p className="video-muted">Job-ul nu are detectii sau nu este finalizat.</p>}
+        {plateSummaries.length === 0 && <p className="video-muted">Procesarea nu are detectii sau nu este finalizata.</p>}
         {plateSummaries.length > 0 && (
           <div className="table-container">
+            {selectedPlateSummary && (
+              <div className="video-vehicle-editor">
+                <div className="video-vehicle-editor-header">
+                  <div>
+                    <span className="video-ai-badge">Dosar vehicul</span>
+                    <h4>{selectedPlateSummary.plateText}</h4>
+                  </div>
+                  <button type="button" className="page-btn" onClick={() => goToVehicleLookup(selectedPlateSummary.plateText)}>
+                    Deschide dosar
+                  </button>
+                </div>
+
+                {selectedPlateSummary.aiAttributes && (
+                  <div className="video-ai-suggestion">
+                    <strong>Sugestie AI:</strong>{' '}
+                    {[selectedPlateSummary.aiAttributes.make, selectedPlateSummary.aiAttributes.model].filter(Boolean).join(' ') || 'Marca/model necunoscute'}
+                    {selectedPlateSummary.aiAttributes.color ? ` - ${colorLabel(selectedPlateSummary.aiAttributes.color)}` : ''}
+                    {(selectedPlateSummary.aiAttributes.make || selectedPlateSummary.aiAttributes.model) && (
+                      <button type="button" className="secondary-btn" onClick={applyVideoAiSuggestion}>
+                        Aplica sugestia
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="video-details-grid">
+                  <label>
+                    Marca
+                    <input name="brand" value={vehicleDetails.brand} onChange={handleVehicleDetailsChange} />
+                  </label>
+                  <label>
+                    Model
+                    <input name="model" value={vehicleDetails.model} onChange={handleVehicleDetailsChange} />
+                  </label>
+                  <label>
+                    Proprietar
+                    <input name="owner" value={vehicleDetails.owner} onChange={handleVehicleDetailsChange} />
+                  </label>
+                  <button type="button" className="primary-btn" onClick={saveVideoVehicleDetails} disabled={vehicleSaving}>
+                    {vehicleSaving ? 'Se salveaza...' : 'Salveaza detaliile'}
+                  </button>
+                </div>
+
+                {vehicleSaveMessage && <div className="alert alert-success">{vehicleSaveMessage}</div>}
+              </div>
+            )}
+
             <p className="video-muted">
               Placute unice: {plateSummaries.length} | Detectii brute: {results.length}
             </p>
@@ -674,7 +850,7 @@ function VideoAlprPage() {
                   <th>Placuta</th>
                   <th>AI vehicul</th>
                   <th>Momente detectie</th>
-                  <th>Lookup</th>
+                  <th>Dosar vehicul</th>
                 </tr>
               </thead>
               <tbody>

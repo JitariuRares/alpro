@@ -57,7 +57,7 @@
   border-radius: 12px;
   background: linear-gradient(135deg, var(--blue), var(--cyan));
   color: #fff;
-  font-weight: 900;
+  font-weight: 750;
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.32);
 }
 
@@ -158,7 +158,7 @@
   display: block;
   color: var(--muted);
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .nav-user strong {
@@ -180,7 +180,7 @@
   border-radius: 999px;
   background: #111827;
   color: #fff;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .logout-btn:hover {
@@ -225,7 +225,7 @@
   margin: 0 0 8px;
   color: var(--blue);
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 750;
   text-transform: uppercase;
 }
 
@@ -272,7 +272,7 @@
   background: transparent;
   color: #475569;
   cursor: pointer;
-  font-weight: 850;
+  font-weight: 700;
   transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -320,6 +320,26 @@
   color: #0f172a !important;
 }
 
+.parking-operation-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.parking-operation-form label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.parking-operation-form .search-input {
+  width: 100%;
+  margin-bottom: 0;
+}
+
 .input,
 .search-input,
 select {
@@ -352,7 +372,7 @@ select:focus {
   border: 0 !important;
   border-radius: 999px !important;
   color: #fff !important;
-  font-weight: 850 !important;
+  font-weight: 700 !important;
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, opacity 0.18s ease;
 }
@@ -430,7 +450,7 @@ button:disabled {
   color: #475569;
   background: #f8fafc !important;
   font-size: 0.76rem;
-  font-weight: 900;
+  font-weight: 750;
   text-transform: uppercase;
 }
 
@@ -446,7 +466,7 @@ button:disabled {
   padding: 0 10px;
   border-radius: 999px;
   font-size: 0.72rem;
-  font-weight: 900;
+  font-weight: 750;
   text-transform: uppercase;
 }
 
@@ -563,7 +583,7 @@ button:disabled {
   grid-area: label;
   color: var(--muted);
   font-size: 0.75rem;
-  font-weight: 850;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
@@ -584,7 +604,7 @@ button:disabled {
   border: 0;
   color: #fff;
   background: linear-gradient(135deg, var(--violet), var(--blue));
-  font-weight: 900;
+  font-weight: 750;
   cursor: pointer;
 }
 
@@ -675,7 +695,7 @@ button:disabled {
   border-radius: var(--radius);
   background: #fff1f2;
   color: #be123c !important;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .review-source-pill {
@@ -686,7 +706,7 @@ button:disabled {
   padding: 0 9px;
   border-radius: 999px;
   font-size: 0.68rem;
-  font-weight: 900;
+  font-weight: 750;
 }
 
 .review-source-pill.foto {
@@ -743,7 +763,7 @@ button:disabled {
 .review-reject-actions small {
   margin-right: auto;
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .page-btn.success-action {
@@ -771,7 +791,7 @@ button:disabled {
 .dashboard-hero-status small {
   width: 100%;
   color: var(--muted);
-  font-weight: 800;
+  font-weight: 700;
   text-align: right;
 }
 
@@ -810,13 +830,13 @@ button:disabled {
 .stat-card span {
   color: var(--muted);
   font-size: 0.82rem;
-  font-weight: 850;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
 .stat-card small {
   color: var(--muted);
-  font-weight: 750;
+  font-weight: 650;
 }
 
 .stat-card strong {
@@ -895,7 +915,7 @@ button:disabled {
 
 .dashboard-flow-row small {
   color: var(--muted);
-  font-weight: 750;
+  font-weight: 650;
 }
 
 .dashboard-panel {
@@ -1170,7 +1190,7 @@ button:disabled {
   display: block;
   margin-top: 6px;
   color: var(--muted);
-  font-weight: 750;
+  font-weight: 650;
 }
 
 .audit-filter-panel,
@@ -1220,7 +1240,7 @@ button:disabled {
   border: 0;
   border-radius: 999px;
   color: #fff;
-  font-weight: 900;
+  font-weight: 750;
   cursor: pointer;
   background: linear-gradient(135deg, #0f172a, #2563eb);
   box-shadow: 0 16px 30px rgba(15, 23, 42, 0.3);
@@ -1291,7 +1311,7 @@ button:disabled {
   background: #f8fbff;
   color: #1e40af;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -1357,7 +1377,7 @@ button:disabled {
   background: #0f172a;
   color: #fff;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -1374,7 +1394,7 @@ button:disabled {
   background: #eff6ff;
   color: #1d4ed8;
   font-size: 0.75rem;
-  font-weight: 750;
+  font-weight: 650;
   padding: 0 9px;
   cursor: pointer;
 }
@@ -1437,6 +1457,7 @@ button:disabled {
   .case-search-panel,
   .case-sections-grid,
   .audit-filter-grid,
+  .parking-operation-form,
   .dashboard-flow-row,
   .dashboard-ops-grid,
   .dashboard-bottom-grid,

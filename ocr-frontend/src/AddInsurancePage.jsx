@@ -4,9 +4,12 @@ import { readApiError, friendlyErrorMessage } from './errorMessages';
 
 function AddInsurancePage() {
   const [plateNumber, setPlateNumber] = useState('');
+  const [policyNumber, setPolicyNumber] = useState('');
+  const [policyType, setPolicyType] = useState('RCA');
   const [company, setCompany] = useState('');
   const [validFrom, setValidFrom] = useState('');
   const [validTo, setValidTo] = useState('');
+  const [notes, setNotes] = useState('');
   const [existingInsurances, setExistingInsurances] = useState([]);
   const [editingInsuranceId, setEditingInsuranceId] = useState(null);
   const [message, setMessage] = useState('');
@@ -15,11 +18,21 @@ function AddInsurancePage() {
   const token = localStorage.getItem('token') || '';
 
   const normalizePlate = (value) => (value || '').trim().toUpperCase();
+  const isActivePolicy = (insurance) => {
+    if (!insurance?.validFrom || !insurance?.validTo) {
+      return false;
+    }
+    const today = new Date();
+    return new Date(insurance.validFrom) <= today && today <= new Date(insurance.validTo);
+  };
 
   const resetFormFields = () => {
+    setPolicyNumber('');
+    setPolicyType('RCA');
     setCompany('');
     setValidFrom('');
     setValidTo('');
+    setNotes('');
     setEditingInsuranceId(null);
   };
 
@@ -60,9 +73,12 @@ function AddInsurancePage() {
       return;
     }
     setEditingInsuranceId(insurance.id);
+    setPolicyNumber(insurance.policyNumber || '');
+    setPolicyType(insurance.policyType || 'RCA');
     setCompany(insurance.company || '');
     setValidFrom(insurance.validFrom || '');
     setValidTo(insurance.validTo || '');
+    setNotes(insurance.notes || '');
     setMessage(`Editezi polita #${insurance.id}`);
     setError('');
   };
@@ -72,7 +88,7 @@ function AddInsurancePage() {
     setMessage('');
 
     const normalizedPlate = normalizePlate(plateNumber);
-    if (!normalizedPlate || !company || !validFrom || !validTo) {
+    if (!normalizedPlate || !policyNumber || !company || !validFrom || !validTo) {
       setError('Completeaza toate campurile.');
       return;
     }
@@ -86,9 +102,12 @@ function AddInsurancePage() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
+            policyNumber: policyNumber.trim(),
+            policyType,
             company: company.trim(),
             validFrom,
             validTo,
+            notes: notes.trim(),
           }),
         });
 
@@ -122,9 +141,12 @@ function AddInsurancePage() {
 
       const plate = plates[0];
       const payload = {
+        policyNumber: policyNumber.trim(),
+        policyType,
         company: company.trim(),
         validFrom,
         validTo,
+        notes: notes.trim(),
         licensePlate: {
           id: plate.id,
           plateNumber: normalizedPlate,
@@ -163,7 +185,6 @@ function AddInsurancePage() {
           value={plateNumber}
           onChange={(e) => setPlateNumber(e.target.value)}
           className="input input-bordered w-full"
-          placeholder="Ex: SV15WDC"
         />
       </div>
 
@@ -177,7 +198,10 @@ function AddInsurancePage() {
             <thead>
               <tr>
                 <th>ID</th>
+                <th>Numar polita</th>
+                <th>Tip</th>
                 <th>Companie</th>
+                <th>Status</th>
                 <th>Valabil de la</th>
                 <th>Valabil pana la</th>
                 <th>Actiune</th>
@@ -187,7 +211,14 @@ function AddInsurancePage() {
               {existingInsurances.map((insurance) => (
                 <tr key={insurance.id}>
                   <td>{insurance.id}</td>
+                  <td>{insurance.policyNumber || '-'}</td>
+                  <td>{insurance.policyType || '-'}</td>
                   <td>{insurance.company}</td>
+                  <td>
+                    <span className={`status-badge ${isActivePolicy(insurance) ? 'success' : 'danger'}`}>
+                      {isActivePolicy(insurance) ? 'Activa' : 'Expirata'}
+                    </span>
+                  </td>
                   <td>{insurance.validFrom}</td>
                   <td>{insurance.validTo}</td>
                   <td>
@@ -203,12 +234,45 @@ function AddInsurancePage() {
       )}
 
       <div className="mb-4">
+        <label className="block font-medium mb-1">Numar polita:</label>
+        <input
+          type="text"
+          value={policyNumber}
+          onChange={(e) => setPolicyNumber(e.target.value)}
+          className="input input-bordered w-full"
+        />
+      </div>
+
+      <div className="mb-4">
+        <label className="block font-medium mb-1">Tip polita:</label>
+        <select
+          value={policyType}
+          onChange={(e) => setPolicyType(e.target.value)}
+          className="input input-bordered w-full"
+        >
+          <option value="RCA">RCA</option>
+          <option value="CASCO">CASCO</option>
+          <option value="ALT TIP">Alt tip</option>
+        </select>
+      </div>
+
+      <div className="mb-4">
         <label className="block font-medium mb-1">Companie de asigurari:</label>
         <input
           type="text"
           value={company}
           onChange={(e) => setCompany(e.target.value)}
           className="input input-bordered w-full"
+        />
+      </div>
+
+      <div className="mb-4">
+        <label className="block font-medium mb-1">Observatii:</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="input input-bordered w-full"
+          maxLength={500}
         />
       </div>
 

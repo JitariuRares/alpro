@@ -45,6 +45,9 @@ public class InsuranceController {
         if (insurance.getCompany() == null || insurance.getCompany().isBlank()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Compania este obligatorie.");
         }
+        if (insurance.getPolicyNumber() == null || insurance.getPolicyNumber().isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Numarul politei este obligatoriu.");
+        }
         if (insurance.getValidFrom() == null || insurance.getValidTo() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Intervalul de valabilitate este obligatoriu.");
         }
@@ -78,7 +81,8 @@ public class InsuranceController {
         List<Insurance> existing = insuranceRepository.findByLicensePlate_PlateNumber(plateNumber);
 
         boolean alreadyExists = existing.stream().anyMatch(ins ->
-                ins.getCompany().equalsIgnoreCase(insurance.getCompany()) &&
+                safeEquals(ins.getPolicyNumber(), insurance.getPolicyNumber()) &&
+                        ins.getCompany().equalsIgnoreCase(insurance.getCompany()) &&
                         ins.getValidFrom().equals(insurance.getValidFrom()) &&
                         ins.getValidTo().equals(insurance.getValidTo())
         );
@@ -89,6 +93,9 @@ public class InsuranceController {
         }
 
         insurance.setCompany(insurance.getCompany().trim());
+        insurance.setPolicyNumber(insurance.getPolicyNumber().trim().toUpperCase(Locale.ROOT));
+        insurance.setPolicyType(normalizePolicyType(insurance.getPolicyType()));
+        insurance.setNotes(normalizeNotes(insurance.getNotes()));
         insurance.setLicensePlate(resolvedPlate);
         Insurance saved = insuranceRepository.save(insurance);
         auditLogService.log(
@@ -113,6 +120,9 @@ public class InsuranceController {
         if (insurance.getCompany() == null || insurance.getCompany().isBlank()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Compania este obligatorie.");
         }
+        if (insurance.getPolicyNumber() == null || insurance.getPolicyNumber().isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Numarul politei este obligatoriu.");
+        }
         if (insurance.getValidFrom() == null || insurance.getValidTo() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Intervalul de valabilitate este obligatoriu.");
         }
@@ -127,8 +137,11 @@ public class InsuranceController {
         }
 
         existing.setCompany(insurance.getCompany().trim());
+        existing.setPolicyNumber(insurance.getPolicyNumber().trim().toUpperCase(Locale.ROOT));
+        existing.setPolicyType(normalizePolicyType(insurance.getPolicyType()));
         existing.setValidFrom(insurance.getValidFrom());
         existing.setValidTo(insurance.getValidTo());
+        existing.setNotes(normalizeNotes(insurance.getNotes()));
 
         Insurance saved = insuranceRepository.save(existing);
         String plateNumber = saved.getLicensePlate() != null ? saved.getLicensePlate().getPlateNumber() : null;
@@ -139,6 +152,32 @@ public class InsuranceController {
                 "Polita actualizata, id=" + saved.getId()
         );
         return ResponseEntity.ok(saved);
+    }
+
+    private boolean safeEquals(String first, String second) {
+        if (first == null || second == null) {
+            return false;
+        }
+        return first.trim().equalsIgnoreCase(second.trim());
+    }
+
+    private String normalizePolicyType(String policyType) {
+        if (policyType == null || policyType.isBlank()) {
+            return "RCA";
+        }
+        String normalized = policyType.trim().toUpperCase(Locale.ROOT);
+        if (!List.of("RCA", "CASCO", "ALT TIP").contains(normalized)) {
+            return "ALT TIP";
+        }
+        return normalized;
+    }
+
+    private String normalizeNotes(String notes) {
+        if (notes == null || notes.isBlank()) {
+            return null;
+        }
+        String normalized = notes.trim();
+        return normalized.length() > 500 ? normalized.substring(0, 500) : normalized;
     }
 
 }

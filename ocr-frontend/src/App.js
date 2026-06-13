@@ -115,7 +115,7 @@ function App() {
         </main>
         <CopilotWidget />
         <footer className="app-footer">
-          ALPRo 2025 - versiune operationala
+          ALPRO 2026
         </footer>
       </div>
     </Router>

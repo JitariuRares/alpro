@@ -7,7 +7,7 @@ import ParkingSearchPage from './ParkingSearchPage';
 import { ROLE_PARKING, ROLE_POLICE, normalizeRole } from './authRouting';
 
 const TABS = [
-  { id: 'operare', label: 'Entry / Exit', icon: FaParking },
+  { id: 'operare', label: 'Operare', icon: FaParking },
   { id: 'sesiuni', label: 'Sesiuni', icon: FaSearchLocation },
 ];
 
@@ -27,7 +27,6 @@ function ParcarePage() {
 
   return (
     <ModuleShell
-      eyebrow="Parking Ops"
       title="Parcare"
       subtitle={role === ROLE_POLICE
         ? 'Consulta sesiunile deja inregistrate pe baza placutei.'

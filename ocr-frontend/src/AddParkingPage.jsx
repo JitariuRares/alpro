@@ -43,11 +43,6 @@ function AddParkingPage() {
       setError('Zona de parcare este obligatorie pentru ENTRY.');
       return;
     }
-    if (!entryImage) {
-      setError('Dovada foto pentru ENTRY este obligatorie.');
-      return;
-    }
-
     setLoadingAction('entry');
     try {
       const formData = new FormData();
@@ -57,7 +52,9 @@ function AddParkingPage() {
       if (isoEntryTime) {
         formData.append('entryTime', isoEntryTime);
       }
-      formData.append('image', entryImage, entryImage.name);
+      if (entryImage) {
+        formData.append('image', entryImage, entryImage.name);
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/parking/entry`, {
         method: 'POST',
@@ -97,11 +94,6 @@ function AddParkingPage() {
       setError('Numarul placutei este obligatoriu pentru EXIT.');
       return;
     }
-    if (!exitImage) {
-      setError('Dovada foto pentru EXIT este obligatorie.');
-      return;
-    }
-
     setLoadingAction('exit');
     try {
       const formData = new FormData();
@@ -110,7 +102,9 @@ function AddParkingPage() {
       if (isoExitTime) {
         formData.append('exitTime', isoExitTime);
       }
-      formData.append('image', exitImage, exitImage.name);
+      if (exitImage) {
+        formData.append('image', exitImage, exitImage.name);
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/parking/exit`, {
         method: 'POST',
@@ -144,39 +138,50 @@ function AddParkingPage() {
     <>
       <div className="card mb-4">
         <h2 className="text-xl font-semibold mb-3">Inregistrare ENTRY</h2>
-        <form onSubmit={submitEntry}>
-          <input
-            type="text"
-            value={entryPlateNumber}
-            onChange={(e) => setEntryPlateNumber(e.target.value)}
-            placeholder="Numar placuta (ex: SV15WDC)"
-            className="search-input"
-            required
-          />
-          <select
-            value={entryParkingZone}
-            onChange={(e) => setEntryParkingZone(e.target.value)}
-            className="search-input"
-            required
-          >
-            {PARKING_ZONES.map((zone) => (
-              <option key={zone} value={zone}>{zone}</option>
-            ))}
-          </select>
-          <input
-            type="datetime-local"
-            value={entryTime}
-            onChange={(e) => setEntryTime(e.target.value)}
-            className="search-input"
-          />
-          <input
-            id="parking-entry-image-input"
-            type="file"
-            accept="image/*"
-            onChange={(e) => setEntryImage(e.target.files?.[0] || null)}
-            className="search-input"
-            required
-          />
+        <p className="case-empty mb-3">Deschide o sesiune pentru o masina care intra in zona selectata.</p>
+        <form className="parking-operation-form" onSubmit={submitEntry}>
+          <label>
+            Numar placuta
+            <input
+              type="text"
+              value={entryPlateNumber}
+              onChange={(e) => setEntryPlateNumber(e.target.value)}
+              className="search-input"
+              required
+            />
+          </label>
+          <label>
+            Zona
+            <select
+              value={entryParkingZone}
+              onChange={(e) => setEntryParkingZone(e.target.value)}
+              className="search-input"
+              required
+            >
+              {PARKING_ZONES.map((zone) => (
+                <option key={zone} value={zone}>{zone}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Ora intrare
+            <input
+              type="datetime-local"
+              value={entryTime}
+              onChange={(e) => setEntryTime(e.target.value)}
+              className="search-input"
+            />
+          </label>
+          <label>
+            Dovada foto optionala
+            <input
+              id="parking-entry-image-input"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setEntryImage(e.target.files?.[0] || null)}
+              className="search-input"
+            />
+          </label>
           <button type="submit" className="search-btn" disabled={loadingAction === 'entry'}>
             {loadingAction === 'entry' ? 'Se salveaza...' : 'Salveaza ENTRY'}
           </button>
@@ -185,29 +190,37 @@ function AddParkingPage() {
 
       <div className="card">
         <h2 className="text-xl font-semibold mb-3">Inregistrare EXIT</h2>
-        <form onSubmit={submitExit}>
-          <input
-            type="text"
-            value={exitPlateNumber}
-            onChange={(e) => setExitPlateNumber(e.target.value)}
-            placeholder="Numar placuta (ex: SV15WDC)"
-            className="search-input"
-            required
-          />
-          <input
-            type="datetime-local"
-            value={exitTime}
-            onChange={(e) => setExitTime(e.target.value)}
-            className="search-input"
-          />
-          <input
-            id="parking-exit-image-input"
-            type="file"
-            accept="image/*"
-            onChange={(e) => setExitImage(e.target.files?.[0] || null)}
-            className="search-input"
-            required
-          />
+        <p className="case-empty mb-3">Inchide sesiunea deschisa pentru placuta introdusa.</p>
+        <form className="parking-operation-form" onSubmit={submitExit}>
+          <label>
+            Numar placuta
+            <input
+              type="text"
+              value={exitPlateNumber}
+              onChange={(e) => setExitPlateNumber(e.target.value)}
+              className="search-input"
+              required
+            />
+          </label>
+          <label>
+            Ora iesire
+            <input
+              type="datetime-local"
+              value={exitTime}
+              onChange={(e) => setExitTime(e.target.value)}
+              className="search-input"
+            />
+          </label>
+          <label>
+            Dovada foto optionala
+            <input
+              id="parking-exit-image-input"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setExitImage(e.target.files?.[0] || null)}
+              className="search-input"
+            />
+          </label>
           <button type="submit" className="search-btn" disabled={loadingAction === 'exit'}>
             {loadingAction === 'exit' ? 'Se salveaza...' : 'Salveaza EXIT'}
           </button>

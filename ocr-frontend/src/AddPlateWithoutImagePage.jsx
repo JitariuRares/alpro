@@ -78,7 +78,6 @@ function AddPlateWithoutImagePage() {
           value={form.plateNumber}
           onChange={handleChange}
           className="input input-bordered w-full mb-3"
-          placeholder="Ex: SV15WDC"
         />
 
         <label className="block font-medium mb-1">Marca:</label>

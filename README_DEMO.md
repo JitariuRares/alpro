@@ -21,16 +21,16 @@
 1. Login cu rol `POLICE`.
 2. Dashboard: arata cardurile principale, detectiile de revizuit si auditul recent.
 3. Detectii:
-   - upload foto
+   - incarcare foto
    - verifica sugestia AI pentru marca/model/culoare/tip caroserie
    - foloseste `Aplica marca/model`, apoi ajusteaza manual daca este nevoie
-   - upload video si verifica sugestia AI pe placutele unice detectate
+   - incarcare video si verifica sugestia AI pe placutele unice detectate
    - review detectii
    - confirma o detectie
    - respinge o detectie cu motiv
 4. Vehicule:
    - cauta o placuta
-   - arata Vehicle Case
+   - arata dosarul vehiculului
    - exporta PDF
 5. Parcare:
    - cauta istoricul unei placute
@@ -52,7 +52,7 @@
 - [ ] Login-ul functioneaza pentru rolurile folosite in demo.
 - [ ] Dashboard-ul incarca statistici fara eroare.
 - [ ] Detectiile se pot confirma si respinge cu motiv.
-- [ ] Vehicle Case afiseaza date, detectii, parking, asigurari si audit.
+- [ ] Dosarul vehiculului afiseaza date, detectii, parcare, asigurari si audit.
 - [ ] Exportul PDF descarca raportul.
 - [ ] Auditul se filtreaza si exportul CSV descarca fisier.
 - [ ] Frontend-ul servit este build-ul curent, nu unul vechi.

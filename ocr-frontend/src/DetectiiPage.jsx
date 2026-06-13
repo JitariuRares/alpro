@@ -171,7 +171,7 @@ function DetectiiReviewPanel() {
           <strong>{rejectedCount}</strong>
         </div>
         <button type="button" className="review-refresh-btn" onClick={loadReviewQueue} disabled={loading}>
-          <FaSyncAlt /> {loading ? 'Se incarca' : 'Refresh'}
+          <FaSyncAlt /> {loading ? 'Se incarca' : 'Reincarca'}
         </button>
       </section>
 
@@ -286,9 +286,8 @@ function DetectiiPage() {
 
   return (
     <ModuleShell
-      eyebrow="Pipeline ALPR"
       title="Detectii"
-      subtitle="Upload foto, procesare video si zona de review pentru rezultatele automate ML-OCR."
+      subtitle="Incarcare foto, procesare video si zona de verificare pentru rezultatele automate ML-OCR."
       tabs={TABS}
       activeTab={activeTab}
       onTabChange={changeTab}

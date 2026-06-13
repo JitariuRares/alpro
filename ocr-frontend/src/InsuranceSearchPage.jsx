@@ -6,6 +6,14 @@ function InsuranceSearchPage() {
   const [insuranceList, setInsuranceList] = useState([]);
   const [error, setError] = useState('');
 
+  const isActivePolicy = (insurance) => {
+    if (!insurance?.validFrom || !insurance?.validTo) {
+      return false;
+    }
+    const today = new Date();
+    return new Date(insurance.validFrom) <= today && today <= new Date(insurance.validTo);
+  };
+
   const handleSearch = async () => {
     setError('');
     setInsuranceList([]);
@@ -30,25 +38,27 @@ function InsuranceSearchPage() {
       const data = await res.json();
       setInsuranceList(data);
     } catch (err) {
-      console.error(err);
       setError(err.message);
     }
   };
 
   return (
     <>
-      <div className="search-form">
-        <h2>📄 Cauta Asigurare dupa Numar Placuta</h2>
+      <div className="case-search-panel">
+        <div>
+          <h2>Cauta asigurare</h2>
+        </div>
 
-        <input
-          type="text"
-          value={plateNumber}
-          onChange={(e) => setPlateNumber(e.target.value)}
-          className="search-input"
-          placeholder="Ex: SV15WDC"
-        />
+        <div className="case-search-controls">
+          <input
+            type="text"
+            value={plateNumber}
+            onChange={(e) => setPlateNumber(e.target.value)}
+            className="search-input"
+          />
 
-        <button onClick={handleSearch} className="search-btn">Cauta</button>
+          <button onClick={handleSearch} className="search-btn">Cauta</button>
+        </div>
       </div>
 
       {error && <div className="alert alert-error mb-4">{error}</div>}
@@ -58,9 +68,18 @@ function InsuranceSearchPage() {
           <h3 className="font-semibold mb-2">Rezultate:</h3>
           {insuranceList.map((ins, idx) => (
             <div key={idx} className="mb-4">
+              <p><strong>Numar polita:</strong> {ins.policyNumber || '-'}</p>
+              <p><strong>Tip polita:</strong> {ins.policyType || '-'}</p>
               <p><strong>Companie:</strong> {ins.company}</p>
+              <p>
+                <strong>Status:</strong>{' '}
+                <span className={`status-badge ${isActivePolicy(ins) ? 'success' : 'danger'}`}>
+                  {isActivePolicy(ins) ? 'Activa' : 'Expirata'}
+                </span>
+              </p>
               <p><strong>De la:</strong> {ins.validFrom}</p>
               <p><strong>Pana la:</strong> {ins.validTo}</p>
+              {ins.notes && <p><strong>Observatii:</strong> {ins.notes}</p>}
               <hr className="my-2" />
             </div>
           ))}

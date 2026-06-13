@@ -46,10 +46,6 @@ public class ParkingService {
         if (parkingZone.isBlank()) {
             throw new RuntimeException("Zona de parcare este obligatorie.");
         }
-        if (image == null || image.isEmpty()) {
-            throw new RuntimeException("Dovada foto pentru ENTRY este obligatorie.");
-        }
-
         LicensePlate plate = resolvePlate(plateNumber);
         boolean alreadyOpen = parkingHistoryRepository
                 .findTopByLicensePlate_PlateNumberAndStatusOrderByEntryTimeDesc(plateNumber, ParkingSessionStatus.OPEN)
@@ -58,7 +54,9 @@ public class ParkingService {
             throw new RuntimeException("Exista deja o sesiune OPEN pentru aceasta placuta.");
         }
 
-        String entryImagePath = storeEvidenceImage(image, "entry");
+        String entryImagePath = image != null && !image.isEmpty()
+                ? storeEvidenceImage(image, "entry")
+                : null;
 
         ParkingHistory session = new ParkingHistory();
         session.setLicensePlate(plate);
@@ -78,10 +76,6 @@ public class ParkingService {
         if (plateNumber.isBlank()) {
             throw new RuntimeException("Numarul placutei este obligatoriu.");
         }
-        if (image == null || image.isEmpty()) {
-            throw new RuntimeException("Dovada foto pentru EXIT este obligatorie.");
-        }
-
         ParkingHistory openSession = parkingHistoryRepository
                 .findTopByLicensePlate_PlateNumberAndStatusOrderByEntryTimeDesc(plateNumber, ParkingSessionStatus.OPEN)
                 .orElseThrow(() -> new RuntimeException("Nu exista sesiune OPEN pentru aceasta placuta."));
@@ -91,7 +85,9 @@ public class ParkingService {
             throw new RuntimeException("EXIT nu poate fi inainte de ENTRY.");
         }
 
-        String exitImagePath = storeEvidenceImage(image, "exit");
+        String exitImagePath = image != null && !image.isEmpty()
+                ? storeEvidenceImage(image, "exit")
+                : null;
         openSession.setExitTime(effectiveExitTime);
         openSession.setExitImagePath(exitImagePath);
         openSession.setStatus(ParkingSessionStatus.CLOSED);

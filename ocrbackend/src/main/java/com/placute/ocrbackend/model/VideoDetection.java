@@ -53,6 +53,9 @@ public class VideoDetection {
     @Column(name = "bbox_h")
     private Integer bboxH;
 
+    @Column(name = "vehicle_image_path")
+    private String vehicleImagePath;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "review_status", length = 32)
     private DetectionReviewStatus reviewStatus = DetectionReviewStatus.DE_REVIEW;
@@ -192,6 +195,14 @@ public class VideoDetection {
 
     public void setBboxH(Integer bboxH) {
         this.bboxH = bboxH;
+    }
+
+    public String getVehicleImagePath() {
+        return vehicleImagePath;
+    }
+
+    public void setVehicleImagePath(String vehicleImagePath) {
+        this.vehicleImagePath = vehicleImagePath;
     }
 
     public DetectionReviewStatus getReviewStatus() {

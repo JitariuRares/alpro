@@ -12,7 +12,7 @@ import {
 import { useLocation } from 'react-router-dom';
 import { API_BASE_URL } from './config';
 import { readApiError, friendlyErrorMessage } from './errorMessages';
-import { auditActionLabel, auditDetailsLabel } from './auditLabels';
+import { auditActionLabel } from './auditLabels';
 
 const normalizePlate = (value) => (value || '').trim().toUpperCase();
 
@@ -189,7 +189,7 @@ function PlateSearchPage() {
     <div className="vehicle-case-page">
       <div className="case-search-panel">
         <div>
-          <span className="module-eyebrow">Vehicle Case</span>
+          <span className="module-eyebrow">Dosar vehicul</span>
           <h2>Cauta dosar vehicul</h2>
         </div>
         <div className="case-search-controls">
@@ -199,7 +199,6 @@ function PlateSearchPage() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
             className="search-input"
-            placeholder="Ex: SV15WDC"
           />
           <button onClick={handleSearch} disabled={loading} className="search-btn">
             <FaSearch aria-hidden="true" />
@@ -258,6 +257,8 @@ function PlateSearchPage() {
                   <table className="table">
                     <thead>
                       <tr>
+                        <th>Numar polita</th>
+                        <th>Tip</th>
                         <th>Companie</th>
                         <th>Status</th>
                         <th>Valabil de la</th>
@@ -267,6 +268,8 @@ function PlateSearchPage() {
                     <tbody>
                       {lookup.insurances.map((insurance) => (
                         <tr key={insurance.id}>
+                          <td>{insurance.policyNumber || '-'}</td>
+                          <td>{insurance.policyType || '-'}</td>
                           <td>{insurance.company}</td>
                           <td>
                             <span className={`status-badge ${
@@ -399,7 +402,6 @@ function PlateSearchPage() {
                       <div>
                         <strong>{event.actorUsername || '-'}</strong>
                         <small>{formatDateTime(event.createdAt)}</small>
-                        <small>{auditDetailsLabel(event.details)}</small>
                       </div>
                     </div>
                   ))}

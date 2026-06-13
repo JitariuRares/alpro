@@ -25,7 +25,6 @@ function AsigurariPage() {
 
   return (
     <ModuleShell
-      eyebrow="Insurance Desk"
       title="Asigurari"
       subtitle="Cauta polite dupa placuta si gestioneaza intervalele de valabilitate."
       tabs={tabs}

@@ -4,10 +4,12 @@ import com.placute.ocrbackend.dto.VideoDetectionDto;
 import com.placute.ocrbackend.dto.VideoDetectionPageDto;
 import com.placute.ocrbackend.dto.VideoJobDto;
 import com.placute.ocrbackend.model.AppUser;
+import com.placute.ocrbackend.model.LicensePlate;
 import com.placute.ocrbackend.model.VideoDetection;
 import com.placute.ocrbackend.model.VideoJob;
 import com.placute.ocrbackend.model.VideoJobStatus;
 import com.placute.ocrbackend.repository.AppUserRepository;
+import com.placute.ocrbackend.repository.LicensePlateRepository;
 import com.placute.ocrbackend.repository.VideoDetectionRepository;
 import com.placute.ocrbackend.repository.VideoJobRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -42,6 +45,9 @@ public class VideoJobService {
 
     @Autowired
     private AppUserRepository appUserRepository;
+
+    @Autowired
+    private LicensePlateRepository licensePlateRepository;
 
     @Autowired
     private VideoJobProcessorService videoJobProcessorService;
@@ -143,6 +149,67 @@ public class VideoJobService {
         return new VideoStreamPayload(resource, contentType, Files.size(path));
     }
 
+    public LicensePlate saveDetectedVehicleDetails(
+            Long jobId,
+            String rawPlateText,
+            LicensePlate updatedData,
+            Authentication authentication
+    ) {
+        AppUser currentUser = getCurrentUser(authentication);
+        VideoJob job = getCurrentUserOwnedJob(jobId, authentication);
+        String normalizedPlate = normalizePlate(rawPlateText);
+
+        List<VideoDetection> detections = videoDetectionRepository.findByJobIdAndPlateTextWithJob(
+                job.getId(),
+                normalizedPlate
+        );
+        if (detections.isEmpty()) {
+            throw new RuntimeException("Placuta nu apartine procesarii video selectate.");
+        }
+
+        VideoDetection representative = detections.stream()
+                .max(Comparator.comparingDouble(this::confidenceOf))
+                .orElse(detections.get(0));
+
+        LicensePlate plate = licensePlateRepository.findByPlateNumber(normalizedPlate)
+                .stream()
+                .findFirst()
+                .orElseGet(() -> {
+                    LicensePlate created = new LicensePlate();
+                    created.setPlateNumber(normalizedPlate);
+                    created.setDetectedAt(LocalDateTime.now());
+                    return created;
+                });
+
+        plate.setUser(currentUser);
+        plate.setPlateType(representative.getPlateType());
+        plate.setDetectedAt(LocalDateTime.now());
+        plate.setConfidence(representative.getConfidence());
+        plate.setBboxX(representative.getBboxX());
+        plate.setBboxY(representative.getBboxY());
+        plate.setBboxW(representative.getBboxW());
+        plate.setBboxH(representative.getBboxH());
+        if (representative.getVehicleImagePath() != null && !representative.getVehicleImagePath().isBlank()) {
+            plate.setImagePath(representative.getVehicleImagePath());
+        }
+
+        if (updatedData != null) {
+            plate.setBrand(cleanText(updatedData.getBrand()));
+            plate.setModel(cleanText(updatedData.getModel()));
+            plate.setOwner(cleanText(updatedData.getOwner()));
+        }
+
+        plate.setAiMakeSuggestion(representative.getAiMakeSuggestion());
+        plate.setAiModelSuggestion(representative.getAiModelSuggestion());
+        plate.setAiColorSuggestion(representative.getAiColorSuggestion());
+        plate.setAiBodyTypeSuggestion(representative.getAiBodyTypeSuggestion());
+        plate.setAiVehicleConfidence(representative.getAiVehicleConfidence());
+        plate.setAiVehicleReasoning(representative.getAiVehicleReasoning());
+        plate.setAiVehicleAnalyzedAt(representative.getAiVehicleAnalyzedAt());
+
+        return licensePlateRepository.save(plate);
+    }
+
     private VideoJob getCurrentUserOwnedJob(Long jobId, Authentication authentication) {
         AppUser currentUser = getCurrentUser(authentication);
         return videoJobRepository.findByIdAndUser_Id(jobId, currentUser.getId())
@@ -157,6 +224,24 @@ public class VideoJobService {
         String username = authentication.getName();
         return appUserRepository.findTopByUsernameIgnoreCaseOrderByIdDesc(username)
                 .orElseThrow(() -> new RuntimeException("Utilizatorul nu a fost gasit"));
+    }
+
+    private String normalizePlate(String rawPlateText) {
+        if (rawPlateText == null || rawPlateText.isBlank()) {
+            throw new RuntimeException("Numarul placutei este obligatoriu.");
+        }
+        return rawPlateText.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String cleanText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private double confidenceOf(VideoDetection detection) {
+        return detection.getConfidence() != null ? detection.getConfidence() : 0.0;
     }
 
     private VideoJobDto toDto(VideoJob job) {
@@ -233,7 +318,7 @@ public class VideoJobService {
 
         Path targetPath = videoRoot.resolve(uniqueName).normalize();
         if (!targetPath.startsWith(videoRoot)) {
-            throw new IOException("Calea de upload video este invalida.");
+            throw new IOException("Calea de incarcare video este invalida.");
         }
 
         file.transferTo(targetPath);

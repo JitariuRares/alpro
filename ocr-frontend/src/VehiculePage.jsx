@@ -27,7 +27,7 @@ function VehiculePage() {
 
   return (
     <ModuleShell
-      eyebrow="Vehicle Case"
+      eyebrow="Dosar vehicul"
       title="Vehicule"
       subtitle="Cauta o placuta, vezi datele agregate si adauga manual vehicule cand lipsesc din baza."
       tabs={tabs}

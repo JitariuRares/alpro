@@ -74,9 +74,12 @@ public class PoliceLookupService {
                 .stream()
                 .map(ins -> new PoliceLookupDto.InsuranceDto(
                         ins.getId(),
+                        ins.getPolicyNumber(),
+                        ins.getPolicyType(),
                         ins.getCompany(),
                         ins.getValidFrom(),
-                        ins.getValidTo()
+                        ins.getValidTo(),
+                        ins.getNotes()
                 ))
                 .toList();
 

@@ -134,19 +134,41 @@ public class PoliceLookupDto {
 
     public static class InsuranceDto {
         private Long id;
+        private String policyNumber;
+        private String policyType;
         private String company;
         private LocalDate validFrom;
         private LocalDate validTo;
+        private String notes;
 
-        public InsuranceDto(Long id, String company, LocalDate validFrom, LocalDate validTo) {
+        public InsuranceDto(
+                Long id,
+                String policyNumber,
+                String policyType,
+                String company,
+                LocalDate validFrom,
+                LocalDate validTo,
+                String notes
+        ) {
             this.id = id;
+            this.policyNumber = policyNumber;
+            this.policyType = policyType;
             this.company = company;
             this.validFrom = validFrom;
             this.validTo = validTo;
+            this.notes = notes;
         }
 
         public Long getId() {
             return id;
+        }
+
+        public String getPolicyNumber() {
+            return policyNumber;
+        }
+
+        public String getPolicyType() {
+            return policyType;
         }
 
         public String getCompany() {
@@ -159,6 +181,10 @@ public class PoliceLookupDto {
 
         public LocalDate getValidTo() {
             return validTo;
+        }
+
+        public String getNotes() {
+            return notes;
         }
     }
 

@@ -4,27 +4,37 @@ import com.placute.ocrbackend.dto.VehicleAttributesDto;
 import com.placute.ocrbackend.integration.OpenAIVehicleAttributeService;
 import com.placute.ocrbackend.integration.MlAlprClient;
 import com.placute.ocrbackend.integration.dto.MlAlprVideoResult;
+import com.placute.ocrbackend.model.PlateType;
 import com.placute.ocrbackend.model.VideoDetection;
 import com.placute.ocrbackend.model.VideoJob;
 import com.placute.ocrbackend.model.VideoJobStatus;
 import com.placute.ocrbackend.repository.VideoDetectionRepository;
 import com.placute.ocrbackend.repository.VideoJobRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class VideoJobProcessorService {
+
+    private static final Logger log = LoggerFactory.getLogger(VideoJobProcessorService.class);
 
     @Autowired
     private VideoJobRepository videoJobRepository;
@@ -49,6 +59,9 @@ public class VideoJobProcessorService {
 
     @Value("${openai.vehicle-attributes.video.max-calls-per-job:5}")
     private int maxVehicleAttributeCallsPerJob;
+
+    @Value("${app.upload-dir:uploads}")
+    private String uploadDir;
 
     @Async
     public void processJobAsync(Long jobId, Integer frameStep, Integer maxFrames) {
@@ -110,7 +123,7 @@ public class VideoJobProcessorService {
                 continue;
             }
             RomanianPlateValidator.ValidationResult plate = plateValidator.validate(mlDetection.getPlateText());
-            if (plate.plateType() == com.placute.ocrbackend.model.PlateType.UNKNOWN) {
+            if (plate.plateType() == PlateType.UNKNOWN) {
                 continue;
             }
             if (mlDetection.getConfidence() != null && mlDetection.getConfidence() < minConfidence) {
@@ -133,6 +146,13 @@ public class VideoJobProcessorService {
             }
             detection.setAiSourceImageBase64(mlDetection.getVehicleImageBase64());
             detection.setAiSourceImageMimeType(mlDetection.getVehicleImageMimeType());
+            detection.setVehicleImagePath(storeVehicleFrameImage(
+                    mlDetection.getVehicleImageBase64(),
+                    mlDetection.getVehicleImageMimeType(),
+                    job.getId(),
+                    plate.normalizedPlate(),
+                    detection.getFrameIndex()
+            ));
 
             Integer trackId = detection.getTrackId();
             if (trackId != null) {
@@ -147,6 +167,64 @@ public class VideoJobProcessorService {
         }
 
         return mapped;
+    }
+
+    private String storeVehicleFrameImage(
+            String imageBase64,
+            String mimeType,
+            Long jobId,
+            String plateText,
+            Integer frameIndex
+    ) {
+        if (imageBase64 == null || imageBase64.isBlank()) {
+            return null;
+        }
+
+        try {
+            String cleanBase64 = imageBase64;
+            int commaIndex = cleanBase64.indexOf(',');
+            if (commaIndex >= 0 && commaIndex < cleanBase64.length() - 1) {
+                cleanBase64 = cleanBase64.substring(commaIndex + 1);
+            }
+
+            byte[] imageBytes = Base64.getDecoder().decode(cleanBase64);
+            String extension = imageExtension(mimeType);
+            Path uploadRoot = Path.of(uploadDir).toAbsolutePath().normalize();
+            Path frameRoot = uploadRoot.resolve("video-frames").normalize();
+            Files.createDirectories(frameRoot);
+
+            String safePlate = plateText != null ? plateText.replaceAll("[^A-Z0-9]", "") : "UNKNOWN";
+            String fileName = "video-frame-job-" + jobId
+                    + "-" + safePlate
+                    + "-f" + (frameIndex != null ? frameIndex : 0)
+                    + "-" + UUID.randomUUID()
+                    + extension;
+            Path target = frameRoot.resolve(fileName).normalize();
+            if (!target.startsWith(frameRoot)) {
+                return null;
+            }
+
+            Files.write(target, imageBytes);
+            return target.toString();
+        } catch (Exception ex) {
+            log.warn("Could not store video frame image for {}: {}", plateText, ex.getMessage());
+            return null;
+        }
+    }
+
+    private String imageExtension(String mimeType) {
+        if (mimeType == null || mimeType.isBlank()) {
+            return ".jpg";
+        }
+
+        String normalized = mimeType.toLowerCase(Locale.ROOT);
+        if (normalized.contains("png")) {
+            return ".png";
+        }
+        if (normalized.contains("webp")) {
+            return ".webp";
+        }
+        return ".jpg";
     }
 
     private void enrichVideoDetections(List<VideoDetection> detections) {
@@ -182,7 +260,9 @@ public class VideoJobProcessorService {
                 calls++;
                 attributes.ifPresent(dto -> applyAttributesToGroup(detections, entry.getKey(), dto));
             } catch (Exception e) {
-                System.out.println("Analiza AI video a fost omisa pentru " + representative.getPlateText() + ": " + e.getMessage());
+                log.warn("Video vehicle attribute analysis skipped for {}: {}",
+                        representative.getPlateText(),
+                        e.getMessage());
             }
         }
     }

@@ -26,6 +26,15 @@ public interface VideoDetectionRepository extends JpaRepository<VideoDetection, 
             select d
             from VideoDetection d
             join fetch d.job
+            where d.plateText = :plateText
+            order by d.id desc
+            """)
+    List<VideoDetection> findTop100ByPlateTextWithJobOrderByIdDesc(@Param("plateText") String plateText, Pageable pageable);
+
+    @Query("""
+            select d
+            from VideoDetection d
+            join fetch d.job
             where d.job.id = :jobId
               and d.plateText = :plateText
               and (

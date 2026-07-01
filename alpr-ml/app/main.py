@@ -8,7 +8,6 @@ import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-# Keep CPU threading predictable in container startup.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
@@ -159,7 +158,6 @@ class AlprPipeline:
             original_torch_load = torch.load
 
             def _torch_load_compat(*args, **kwargs):
-                # yolov5 checkpoints require the old default for compatibility.
                 kwargs.setdefault("weights_only", False)
                 return original_torch_load(*args, **kwargs)
 
@@ -388,7 +386,6 @@ class AlprPipeline:
         return image
 
     def _detect_and_read(self, image: np.ndarray) -> List[Candidate]:
-        # If detector or OCR is missing, return an empty list instead of crashing.
         if self.detector is None or self.ocr is None:
             return []
 
@@ -407,7 +404,6 @@ class AlprPipeline:
             if not normalized:
                 continue
 
-            # Combined score favors strong OCR and confident detection.
             combined_conf = (ocr_confidence * 0.7) + (detection["confidence"] * 0.3)
             candidates.append(
                 Candidate(
@@ -640,12 +636,10 @@ class AlprPipeline:
         normalized_frame_step = self._normalize_frame_step(frame_step)
         normalized_max_frames = self._normalize_max_frames(max_frames)
 
-        # Auto sampling for simple UX: keep the processed frame count around a target.
         if frame_step is None and total_frames > 0 and self.video_target_processed_frames > 0:
             auto_step = max(1, math.ceil(total_frames / self.video_target_processed_frames))
             normalized_frame_step = max(normalized_frame_step, min(auto_step, 120))
 
-        # Optional cap for extremely long videos when maxFrames is not provided.
         if max_frames is None and normalized_max_frames is None and self.video_target_processed_frames > 0:
             normalized_max_frames = self.video_target_processed_frames
 
@@ -766,7 +760,6 @@ async def infer_car_image(image: UploadFile = File(...)) -> dict:
     if not content:
         raise HTTPException(status_code=400, detail="Imagine goala")
 
-    # Validate that upload is an actual image before inference.
     try:
         with Image.open(io.BytesIO(content)) as img:
             img.verify()

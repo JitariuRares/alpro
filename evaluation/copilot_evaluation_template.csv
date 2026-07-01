@@ -1,4 +1,0 @@
-﻿prompt,role,expected_intent,expected_target,actual_intent,actual_target,correct_intent,correct_role_handling,correct_navigation,notes
-"cauta dosarul pentru B332SRA",POLICE,POLICE_LOOKUP,B332SRA,,,,,,
-"arata sesiunile de parcare pentru B332SRA",PARKING,PARKING_LOOKUP,B332SRA,,,,,,
-"verifica asigurarea pentru B332SRA",INSURANCE,INSURANCE_LOOKUP,B332SRA,,,,,,

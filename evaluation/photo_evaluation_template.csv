@@ -1,2 +1,0 @@
-﻿file_name,ground_truth_plate,expected_plate_type,condition,detected_plate,detected_plate_type,correct_plate,correct_type,processing_ms,notes
-example_01.jpg,B332SRA,STANDARD,clear frontal,,,,,,

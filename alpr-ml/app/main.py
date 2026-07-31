@@ -460,7 +460,7 @@ class AlprPipeline:
         existing = track_vehicle_images.get(track_id)
         if existing is not None and existing.get("confidence", 0.0) >= confidence:
             return
-
+    
         vehicle_crop = self._crop_vehicle_context(frame, plate_bbox)
         encoded = self._encode_jpeg_base64(vehicle_crop)
         if encoded is None:
